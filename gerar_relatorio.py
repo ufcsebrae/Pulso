@@ -4,11 +4,12 @@ gerar_relatorio.py
 
 Script dedicado à GERAÇÃO de relatórios de performance orçamentária em HTML.
 """
+
 import argparse
 import logging
 import sys
 import os
-from typing import Any, Dict, List
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
@@ -280,6 +281,7 @@ def main() -> None:
     parser.add_argument("--todas-unidades", action="store_true", help="Gera relatórios para todas as unidades disponíveis na base de dados.")
     args = parser.parse_args()
 
+    # Cria apenas as pastas de logs e relatórios
     CONFIG.paths.relatorios_dir.mkdir(parents=True, exist_ok=True)
     CONFIG.paths.logs_dir.mkdir(parents=True, exist_ok=True)
         
@@ -316,14 +318,12 @@ def main() -> None:
         logger.info("Carregando dados base do banco de dados (uma única vez)...")
         df_base_total = pd.read_sql(sql_query, engine_db, params=params)
         
-        # Como os nomes das colunas da função são simples, não precisamos mais renomear.
+        # Processamento do DataFrame base
         df_base_total['nm_unidade_padronizada'] = df_base_total['UNIDADE'].str.upper().str.replace('SP - ', '', regex=False).str.strip()
-        
         unidades_por_projeto = df_base_total.groupby('PROJETO')['nm_unidade_padronizada'].nunique().reset_index()
         unidades_por_projeto.rename(columns={'nm_unidade_padronizada': 'contagem_unidades'}, inplace=True)
         unidades_por_projeto['tipo_projeto'] = np.where(unidades_por_projeto['contagem_unidades'] > 1, 'Compartilhado', 'Exclusivo')
         df_base_total = pd.merge(df_base_total, unidades_por_projeto[['PROJETO', 'tipo_projeto']], on='PROJETO', how='left')
-        
         df_base_total['nm_mes_num'] = pd.to_numeric(df_base_total['MES'], errors='coerce')
         mapa_trimestre_num = {1: '1T', 2: '1T', 3: '1T', 4: '2T', 5: '2T', 6: '2T', 7: '3T', 8: '3T', 9: '3T', 10: '4T', 11: '4T', 12: '4T'}
         df_base_total['nm_trimestre'] = df_base_total['nm_mes_num'].map(mapa_trimestre_num)
