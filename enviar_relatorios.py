@@ -1,10 +1,15 @@
-# enviar_relatorios.py
+# -*- coding: utf-8 -*-
+"""
+Script responsável pelo ENVIO dos relatórios de performance via Outlook.
+Este script é executado após a geração dos arquivos HTML e orquestra
+a apresentação dos dados, incluindo resumo executivo, screenshots e
+confirmação do destinatário.
+"""
 import argparse
 import logging
 import os
 import sys
 import time
-import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -17,8 +22,10 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
+# --- Supressão de Avisos Específicos ---
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# --- Inicialização Crítica ---
 try:
     from logger_config import configurar_logger
     configurar_logger("envio_relatorios.log")
@@ -31,6 +38,7 @@ except (ImportError, FileNotFoundError, Exception) as e:
 
 logger = logging.getLogger(__name__)
 
+# --- Importações do Projeto ---
 try:
     from config import CONFIG
     from database import get_conexao
@@ -38,7 +46,11 @@ except ImportError as e:
     logger.critical("Erro de importação: %s. Verifique config.py e database.py.", e)
     sys.exit(1)
 
+
+# --- Funções Auxiliares de Lógica e Apresentação ---
+
 def carregar_gerentes_do_csv() -> Dict[str, Dict[str, str]]:
+    """Carrega os dados de gerentes do arquivo CSV e os transforma em um dicionário."""
     caminho_csv = CONFIG.paths.gerentes_csv
     if not caminho_csv.exists():
         logger.error(f"Arquivo de gerentes não encontrado: {caminho_csv}")
@@ -59,6 +71,7 @@ def carregar_gerentes_do_csv() -> Dict[str, Dict[str, str]]:
         return {}
 
 def enviar_via_outlook(destinatario: str, assunto: str, corpo_html: str, anexo_path: Optional[Path] = None) -> bool:
+    """Cria e exibe um e-mail no Outlook, pronto para ser enviado."""
     try:
         outlook = win32.Dispatch('outlook.application')
         mail = outlook.CreateItem(0)
@@ -80,14 +93,18 @@ def enviar_via_outlook(destinatario: str, assunto: str, corpo_html: str, anexo_p
         return False
 
 def capturar_screenshot_relatorio(html_path: Path) -> Optional[Path]:
+    """Abre um arquivo HTML local em um navegador headless e tira um screenshot."""
     logger.info(f"Capturando screenshot de '{html_path.name}'...")
-    screenshot_path = CONFIG.paths.relatorios_dir / f"screenshot_{html_path.stem}.png"
+    # --- CORREÇÃO AQUI ---
+    screenshot_path = CONFIG.paths.docs_dir / f"screenshot_{html_path.stem}.png"
+    
     options = ChromeOptions()
     options.add_argument("--headless")
     options.add_argument("--window-size=1200,800")
     options.add_argument("--hide-scrollbars")
     os.environ['WDM_SSL_VERIFY'] = '0'
     os.environ['WDM_LOCAL'] = '1'
+
     try:
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
@@ -95,6 +112,7 @@ def capturar_screenshot_relatorio(html_path: Path) -> Optional[Path]:
         time.sleep(3)
         driver.save_screenshot(str(screenshot_path))
         driver.quit()
+        
         logger.info(f"Screenshot salvo em: '{screenshot_path}'")
         return screenshot_path
     except Exception as e:
@@ -102,16 +120,21 @@ def capturar_screenshot_relatorio(html_path: Path) -> Optional[Path]:
         return None
 
 def gerar_resumo_executivo(unidade: str, df_base: pd.DataFrame) -> str:
+    """Analisa os dados de uma unidade e gera 3 bullet points com insights."""
     logger.info(f"Gerando resumo executivo para a unidade: {unidade}")
     df_unidade = df_base[df_base['nm_unidade_padronizada'] == unidade]
-    if df_unidade.empty: return "<li>Não foram encontrados dados suficientes para gerar um resumo.</li>"
+    if df_unidade.empty:
+        return "<li>Não foram encontrados dados suficientes para gerar um resumo.</li>"
+
     total_planejado = df_unidade['Valor_Planejado'].sum()
     total_executado = df_unidade['Valor_Executado'].sum()
     perc_execucao = (total_executado / total_planejado * 100) if total_planejado > 0 else 0
     resumo1 = f"A unidade atingiu <strong>{perc_execucao:.1f}%</strong> da sua meta orçamentária total (Executado: R$ {total_executado:,.2f} de R$ {total_planejado:,.2f})."
+
     projeto_maior_execucao = df_unidade.groupby('PROJETO')['Valor_Executado'].sum().idxmax()
     valor_maior_execucao = df_unidade.groupby('PROJETO')['Valor_Executado'].sum().max()
     resumo2 = f"O projeto de maior destaque em execução financeira é <strong>'{projeto_maior_execucao}'</strong>, com R$ {valor_maior_execucao:,.2f} já realizados."
+    
     df_com_orcamento = df_unidade[df_unidade['Valor_Planejado'] > 0].copy()
     if not df_com_orcamento.empty:
         df_com_orcamento['perc_exec'] = df_com_orcamento['Valor_Executado'] / df_com_orcamento['Valor_Planejado']
@@ -120,14 +143,14 @@ def gerar_resumo_executivo(unidade: str, df_base: pd.DataFrame) -> str:
         resumo3 = f"Ponto de atenção: o projeto <strong>'{projeto_menor_execucao}'</strong> apresenta a menor taxa de execução ({perc_menor_execucao:.1f}%), indicando uma oportunidade de análise."
     else:
         resumo3 = "Todos os projetos com orçamento tiveram alguma execução."
+
     return f"<ul><li>{resumo1}</li><li>{resumo2}</li><li>{resumo3}</li></ul>"
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Envia relatórios de performance via Outlook.")
-    args = parser.parse_args()
 
+def main() -> None:
+    """Ponto de entrada do script de envio de relatórios."""
+    
     # --- CORREÇÃO AQUI ---
-    # Usa a variável correta 'docs_dir'
     relatorios_dir = CONFIG.paths.docs_dir
     relatorios_gerados = sorted(list(relatorios_dir.glob("*.html")))
 
@@ -172,11 +195,8 @@ def main() -> None:
     logger.info("Carregando dados base para gerar resumos...")
     PPA_FILTRO = os.getenv("PPA_FILTRO", 'PPA 2025 - 2025/DEZ')
     ANO_FILTRO = int(os.getenv("ANO_FILTRO", 2025))
-    
-    # --- CORREÇÃO DA QUERY PRINCIPAL ---
     sql_query = "SELECT * FROM dbo.vw_Analise_Planejado_vs_Executado_v2(?, ?, ?)"
     params = (f'{ANO_FILTRO}-01-01', f'{ANO_FILTRO}-12-31', PPA_FILTRO)
-    
     df_base_total = pd.read_sql(sql_query, engine_db, params=params)
     df_base_total['nm_unidade_padronizada'] = df_base_total['UNIDADE'].str.upper().str.replace('SP - ', '', regex=False).str.strip()
 
