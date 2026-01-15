@@ -4,8 +4,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Final
 
+# A biblioteca python-dotenv é ótima para desenvolvimento, mas em produção
+# as variáveis de ambiente são geralmente gerenciadas pelo sistema operacional
+# ou orquestrador de contêineres. O uso direto de os.getenv garante
+# que o código funcione em ambos os cenários.
 from dotenv import load_dotenv
 
+# Carrega as variáveis de ambiente do arquivo .env no diretório do projeto.
 load_dotenv()
 
 
@@ -15,11 +20,12 @@ class PathsConfig:
 
     base_dir: Path = Path(__file__).resolve().parent
     
-    # Diretórios de Saída
-    relatorios_dir: Path = base_dir / "relatorios"
+    # --- Diretórios de Saída ---
+    # Renomeado de 'relatorios' para 'docs' para compatibilidade com GitHub Pages.
+    relatorios_dir: Path = base_dir / "docs"
     logs_dir: Path = base_dir / "logs"
 
-    # Arquivos de Entrada e Dados
+    # --- Arquivos de Entrada e Dados ---
     query_nacional: Path = base_dir / "queries" / "nacional.sql"
     query_cc: Path = base_dir / "queries" / "cc.sql"
     cache_db: Path = base_dir / "cache_dados.db"
@@ -54,9 +60,11 @@ class AppConfig:
 def get_config() -> AppConfig:
     """
     Constrói e retorna o objeto de configuração principal da aplicação.
+    Valida a presença de variáveis de ambiente essenciais.
     """
     paths = PathsConfig()
 
+    # O driver agora é configurável via variável de ambiente, com um padrão seguro.
     driver_sql = os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server")
 
     conexoes = {
@@ -81,17 +89,23 @@ def get_config() -> AppConfig:
         ),
     }
 
-    # Validações críticas...
+    # Validação crítica para garantir que as variáveis de ambiente foram carregadas
     if not conexoes["HubDados"].servidor or not conexoes["FINANCA_SQL"].servidor:
-        raise ValueError("Erro: Variáveis de ambiente para conexões SQL não definidas.")
+        raise ValueError(
+            "Erro crítico: Variáveis de ambiente para conexões SQL (DB_SERVER_HUB, DB_SERVER_FINANCA) "
+            "não foram definidas no arquivo .env."
+        )
 
     if conexoes["OLAP"].tipo == "olap" and not all(
         [conexoes["OLAP"].provider, conexoes["OLAP"].data_source, conexoes["OLAP"].catalog]
     ):
-        raise ValueError("Erro: Variáveis de ambiente para conexão OLAP não definidas.")
+        raise ValueError(
+            "Erro crítico: Variáveis para conexão OLAP (OLAP_PROVIDER, OLAP_SOURCE, OLAP_CATALOG) "
+            "não foram completamente definidas no arquivo .env."
+        )
 
     return AppConfig(paths=paths, conexoes=conexoes)
 
 
+# Instância única de configuração para ser importada em outros módulos.
 CONFIG: Final[AppConfig] = get_config()
-
