@@ -16,12 +16,12 @@ class PathsConfig:
     base_dir: Path = Path(__file__).resolve().parent
     
     # Diretórios de Saída
-    relatorios_dir: Path = base_dir / "docs" # Aponta para a pasta 'docs'
+    docs_dir: Path = base_dir / "docs"  # Pasta para relatórios publicados
     logs_dir: Path = base_dir / "logs"
 
     # Diretório de Templates e Estilos
     templates_dir: Path = base_dir / "templates"
-    static_dir: Path = relatorios_dir / "static" # Pasta para CSS dentro de 'docs'
+    static_dir: Path = docs_dir / "static"  # Pasta para CSS dentro de 'docs'
 
     # Arquivos de Entrada e Dados
     query_nacional: Path = base_dir / "queries" / "nacional.sql"
@@ -35,7 +35,6 @@ class PathsConfig:
 @dataclass(frozen=True)
 class DbConfig:
     """Define a estrutura para uma configuração de banco de dados."""
-
     tipo: str
     driver: str | None = None
     servidor: str | None = None
@@ -50,18 +49,13 @@ class DbConfig:
 @dataclass(frozen=True)
 class AppConfig:
     """Agrega todas as configurações da aplicação."""
-
     paths: PathsConfig
     conexoes: Dict[str, DbConfig]
 
 
 def get_config() -> AppConfig:
-    """
-    Constrói e retorna o objeto de configuração principal da aplicação.
-    Valida a presença de variáveis de ambiente essenciais.
-    """
+    """Constrói e retorna o objeto de configuração principal da aplicação."""
     paths = PathsConfig()
-
     driver_sql = os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server")
 
     conexoes = {
@@ -87,21 +81,12 @@ def get_config() -> AppConfig:
     }
 
     if not conexoes["HubDados"].servidor or not conexoes["FINANCA_SQL"].servidor:
-        raise ValueError(
-            "Erro crítico: Variáveis de ambiente para conexões SQL (DB_SERVER_HUB, DB_SERVER_FINANCA) "
-            "não foram definidas no arquivo .env."
-        )
+        raise ValueError("Erro: Variáveis de ambiente para conexões SQL não definidas.")
 
-    if conexoes["OLAP"].tipo == "olap" and not all(
-        [conexoes["OLAP"].provider, conexoes["OLAP"].data_source, conexoes["OLAP"].catalog]
-    ):
-        raise ValueError(
-            "Erro crítico: Variáveis para conexão OLAP (OLAP_PROVIDER, OLAP_SOURCE, OLAP_CATALOG) "
-            "não foram completamente definidas no arquivo .env."
-        )
+    if conexoes["OLAP"].tipo == "olap" and not all([conexoes["OLAP"].provider, conexoes["OLAP"].data_source, conexoes["OLAP"].catalog]):
+        raise ValueError("Erro: Variáveis de ambiente para conexão OLAP não definidas.")
 
     return AppConfig(paths=paths, conexoes=conexoes)
 
 
 CONFIG: Final[AppConfig] = get_config()
-

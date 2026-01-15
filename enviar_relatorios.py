@@ -126,15 +126,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Envia relatórios de performance via Outlook.")
     args = parser.parse_args()
 
-    relatorios_dir = CONFIG.paths.relatorios_dir
-    if not relatorios_dir.exists():
-        logger.error(f"A pasta de relatórios '{relatorios_dir}' não foi encontrada. Execute 'gerar_relatorio.py' primeiro.")
-        sys.exit(1)
-        
+    # --- CORREÇÃO AQUI ---
+    # Usa a variável correta 'docs_dir'
+    relatorios_dir = CONFIG.paths.docs_dir
     relatorios_gerados = sorted(list(relatorios_dir.glob("*.html")))
 
     if not relatorios_gerados:
-        logger.warning(f"Nenhum relatório HTML encontrado na pasta '{relatorios_dir}'.")
+        logger.warning(f"Nenhum relatório HTML encontrado na pasta '{relatorios_dir}'. Execute 'gerar_relatorio.py' primeiro.")
         sys.exit(0)
 
     gerentes = carregar_gerentes_do_csv()

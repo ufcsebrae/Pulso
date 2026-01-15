@@ -3,13 +3,14 @@
 gerar_relatorio.py
 
 Script dedicado à GERAÇÃO de relatórios de performance orçamentária em HTML.
+Ele pode ser executado de forma interativa ou via linha de comando para
+gerar relatórios para uma ou todas as unidades disponíveis na base de dados.
 """
-
 import argparse
 import logging
 import sys
 import os
-from typing import Any, List
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -52,7 +53,6 @@ def formatar_valor_tabela(num):
     if abs(num) >= 1_000: return f"{num/1_000:,.1f}k"
     return f"{num:,.0f}"
 
-# Retorna ao template padrão que funciona bem
 pio.templates.default = "plotly_white"
 pd.options.display.float_format = '{:,.2f}'.format
 
@@ -94,7 +94,7 @@ def selecionar_unidades_interativamente(unidades_disponiveis: List[str]) -> List
             if len(unidades_selecionadas) < len(indices_escolhidos):
                 logger.warning("Alguns números eram inválidos e foram ignorados.")
             return unidades_selecionadas
-        except (ValueError, IndexError):
+        except ValueError:
             print("Entrada inválida. Por favor, digite números separados por vírgula (ex: 1, 3, 5) ou 'all'.")
 
 def criar_tabela_analitica_trimestral(df, index_col, index_col_name):
@@ -114,6 +114,7 @@ def criar_tabela_analitica_trimestral(df, index_col, index_col_name):
             total_exec_ano += executado
         row_data['Total_Exec_Ano'] = total_exec_ano
         dados_brutos.append(row_data)
+
     tabela_bruta = pd.DataFrame(dados_brutos)
     total_geral = df.groupby('nm_trimestre', observed=False).agg(Executado=('Valor_Executado', 'sum'), Planejado=('Valor_Planejado', 'sum')).reset_index()
     total_row_data = {'Projeto': 'Total Geral'}
@@ -139,15 +140,13 @@ def criar_tabela_analitica_trimestral(df, index_col, index_col_name):
 
 
 def gerar_relatorio_para_unidade(unidade_alvo: str, df_base: pd.DataFrame) -> None:
-    """Gera o relatório HTML para uma unidade específica a partir de um DataFrame base."""
     logger.info(f"Iniciando geração de relatório para a unidade: {unidade_alvo}")
-
     df_unidade_filtrada = df_base[df_base['nm_unidade_padronizada'] == unidade_alvo].copy()
     if df_unidade_filtrada.empty: 
-        logger.warning(f"Nenhum dado encontrado para a unidade '{unidade_alvo}' no DataFrame base. Pulando.")
+        logger.warning(f"Nenhum dado encontrado para a unidade '{unidade_alvo}'. Pulando.")
         return
 
-    # Cálculos de KPIs
+    # --- INÍCIO DO BLOCO DE LÓGICA RESTAURADO ---
     df_exclusivos_unidade = df_unidade_filtrada[df_unidade_filtrada['tipo_projeto'] == 'Exclusivo'].copy()
     df_compartilhados_unidade = df_unidade_filtrada[df_unidade_filtrada['tipo_projeto'] == 'Compartilhado'].copy()
 
@@ -185,8 +184,10 @@ def gerar_relatorio_para_unidade(unidade_alvo: str, df_base: pd.DataFrame) -> No
     fig_gauge_total = go.Figure(go.Indicator(mode="gauge+number", value=perc_total, title={'text': "Execução Total"}, number={'valueformat': '.1f', 'suffix': '%'}, gauge={'axis': {'range': [None, 100]}, 'bar': {'color': "#004085"}}))
     fig_gauge_total.add_annotation(x=0.5, y=-0.18, text=texto_contribuicao, showarrow=False, font=dict(size=12, color="#6c757d"))
     fig_gauge_total.update_layout(height=250, margin=dict(t=50, b=30))
+
     fig_gauge_exclusivos = go.Figure(go.Indicator(mode="gauge+number", value=perc_exclusivos, title={'text': "Projetos Exclusivos"}, number={'valueformat': '.1f', 'suffix': '%'}, gauge={'axis': {'range': [None, 100]}, 'bar': {'color': "green"}}))
     fig_gauge_exclusivos.update_layout(height=250, margin=dict(t=50, b=20))
+
     fig_gauge_compartilhados = go.Figure(go.Indicator(mode="gauge+number", value=perc_compartilhados, title={'text': "Projetos Compartilhados"}, number={'valueformat': '.1f', 'suffix': '%'}, gauge={'axis': {'range': [None, 100]}, 'bar': {'color': "goldenrod"}}))
     fig_gauge_compartilhados.update_layout(height=250, margin=dict(t=50, b=20))
     
@@ -228,6 +229,7 @@ def gerar_relatorio_para_unidade(unidade_alvo: str, df_base: pd.DataFrame) -> No
     tb_natureza_exc = criar_tabela_analitica_trimestral(df_exclusivos_unidade, 'Descricao_Natureza_Orcamentaria', 'Natureza Orçamentária')
     tb_natureza_comp = criar_tabela_analitica_trimestral(df_compartilhados_unidade, 'Descricao_Natureza_Orcamentaria', 'Natureza Orçamentária')
     logger.info(f"Tabelas analíticas criadas com sucesso para {unidade_alvo}.\n")
+    # --- FIM DO BLOCO DE LÓGICA RESTAURADO ---
 
     logger.info(f"Montando e salvando o arquivo HTML para {unidade_alvo}...")
     try:
@@ -240,6 +242,7 @@ def gerar_relatorio_para_unidade(unidade_alvo: str, df_base: pd.DataFrame) -> No
         logger.exception(f"Erro ao ler o arquivo de template: {e}")
         return
 
+    # --- CORREÇÃO: Dicionário de contexto completo ---
     contexto = {
         "unidade_alvo": unidade_alvo,
         "html_gauge_total": pio.to_html(fig_gauge_total, full_html=False, include_plotlyjs='cdn'),
@@ -259,8 +262,8 @@ def gerar_relatorio_para_unidade(unidade_alvo: str, df_base: pd.DataFrame) -> No
         "kpi_compartilhados_acoes": kpi_compartilhados_acoes,
         "html_line_valor_exclusivos": pio.to_html(fig_line_valor_exclusivos, full_html=False, include_plotlyjs=False),
         "html_line_valor_compartilhados": pio.to_html(fig_line_valor_compartilhados, full_html=False, include_plotlyjs=False),
-        "html_perc_exclusivos": fig_perc_exclusivos.to_html(full_html=False, include_plotlyjs=False),
-        "html_perc_compartilhados": fig_perc_compartilhados.to_html(full_html=False, include_plotlyjs=False),
+        "html_perc_exclusivos": pio.to_html(fig_perc_exclusivos, full_html=False, include_plotlyjs=False),
+        "html_perc_compartilhados": pio.to_html(fig_perc_compartilhados, full_html=False, include_plotlyjs=False),
         "html_table_projetos_exc": tb_projetos_exc.to_html(classes='table table-striped table-hover table-sm', index=False, border=0, escape=False),
         "html_table_projetos_comp": tb_projetos_comp.to_html(classes='table table-striped table-hover table-sm', index=False, border=0, escape=False),
         "html_table_natureza_exc": tb_natureza_exc.to_html(classes='table table-striped table-hover table-sm', index=False, border=0, escape=False),
@@ -269,7 +272,7 @@ def gerar_relatorio_para_unidade(unidade_alvo: str, df_base: pd.DataFrame) -> No
 
     html_final = template_string.format(**contexto)
     
-    caminho_arquivo_html = CONFIG.paths.relatorios_dir / f"relatorio_{unidade_alvo.replace(' ', '_')}.html"
+    caminho_arquivo_html = CONFIG.paths.docs_dir / f"relatorio_{unidade_alvo.replace(' ', '_')}.html"
     caminho_arquivo_html.parent.mkdir(parents=True, exist_ok=True)
     with open(caminho_arquivo_html, 'w', encoding='utf-8') as f:
         f.write(html_final)
@@ -281,8 +284,7 @@ def main() -> None:
     parser.add_argument("--todas-unidades", action="store_true", help="Gera relatórios para todas as unidades disponíveis na base de dados.")
     args = parser.parse_args()
 
-    # Cria apenas as pastas de logs e relatórios
-    CONFIG.paths.relatorios_dir.mkdir(parents=True, exist_ok=True)
+    CONFIG.paths.docs_dir.mkdir(parents=True, exist_ok=True)
     CONFIG.paths.logs_dir.mkdir(parents=True, exist_ok=True)
         
     logger.info("Estabelecendo conexão com o banco de dados...")
@@ -294,7 +296,6 @@ def main() -> None:
         sys.exit(1)
 
     unidades_a_gerar = []
-
     if args.unidade:
         unidades_a_gerar = [args.unidade.upper().strip()]
     elif args.todas_unidades:
@@ -318,12 +319,12 @@ def main() -> None:
         logger.info("Carregando dados base do banco de dados (uma única vez)...")
         df_base_total = pd.read_sql(sql_query, engine_db, params=params)
         
-        # Processamento do DataFrame base
         df_base_total['nm_unidade_padronizada'] = df_base_total['UNIDADE'].str.upper().str.replace('SP - ', '', regex=False).str.strip()
         unidades_por_projeto = df_base_total.groupby('PROJETO')['nm_unidade_padronizada'].nunique().reset_index()
         unidades_por_projeto.rename(columns={'nm_unidade_padronizada': 'contagem_unidades'}, inplace=True)
         unidades_por_projeto['tipo_projeto'] = np.where(unidades_por_projeto['contagem_unidades'] > 1, 'Compartilhado', 'Exclusivo')
         df_base_total = pd.merge(df_base_total, unidades_por_projeto[['PROJETO', 'tipo_projeto']], on='PROJETO', how='left')
+        
         df_base_total['nm_mes_num'] = pd.to_numeric(df_base_total['MES'], errors='coerce')
         mapa_trimestre_num = {1: '1T', 2: '1T', 3: '1T', 4: '2T', 5: '2T', 6: '2T', 7: '3T', 8: '3T', 9: '3T', 10: '4T', 11: '4T', 12: '4T'}
         df_base_total['nm_trimestre'] = df_base_total['nm_mes_num'].map(mapa_trimestre_num)
