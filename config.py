@@ -30,6 +30,7 @@ class PathsConfig:
     mapa_correcoes: Path = base_dir / "mapa_correcoes.json"
     drivers: Path = base_dir / "drivers"
     gerentes_csv: Path = base_dir / "gerentes.csv"
+    mapa_naturezas_csv: Path = base_dir / "mapa_naturezas.csv"
 
 
 @dataclass(frozen=True)
