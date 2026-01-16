@@ -1,83 +1,46 @@
-# -*- coding: utf-8 -*-
 # gerar_relatorio.py
-
 import argparse
 import logging
 import sys
-import os
-from typing import Any, Dict, List
-
-import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
-import plotly.io as pio
+import json
+from pathlib import Path
 
-# --- Inicialização ---
+# --- Módulo de Dados Centralizado ---
 try:
-    from logger_config import configurar_logger
-    configurar_logger("geracao_relatorios.log")
-    from inicializacao import carregar_drivers_externos
-    carregar_drivers_externos()
-except (ImportError, FileNotFoundError, Exception) as e:
+    from processamento_dados_base import obter_dados_processados
+except ImportError:
     logging.basicConfig(level=logging.INFO)
-    logging.critical("Falha na inicialização: %s", e, exc_info=True)
+    logging.critical("Erro: O arquivo 'processamento_dados_base.py' não foi encontrado.")
     sys.exit(1)
+
+from config import CONFIG
 
 logger = logging.getLogger(__name__)
 
-try:
-    from config import CONFIG
-    from database import get_conexao
-except ImportError as e:
-    logger.critical("Erro de importação de config/database: %s.", e)
-    sys.exit(1)
+def formatar_brl(valor):
+    """Formata um número para o padrão de moeda BRL (ex: R$ 1,23 M)."""
+    if pd.isna(valor) or valor == 0:
+        return "R$ 0"
+    if abs(valor) >= 1_000_000:
+        return f"R$ {(valor / 1_000_000):.2f} M"
+    if abs(valor) >= 1_000:
+        return f"R$ {(valor / 1_000):.1f} k"
+    return f"R$ {valor:,.2f}"
 
-
-# --- Funções de Formatação e Lógica ---
-
-def formatar_numero_kpi(num):
-    if num is None or pd.isna(num): return "N/A"
-    if abs(num) >= 1_000_000: return f"R$ {num/1_000_000:,.2f} M"
-    if abs(num) >= 1_000: return f"R$ {num/1_000:,.1f} k"
-    return f"R$ {num:,.2f}"
-
-pio.templates.default = "plotly_white"
-pd.options.display.float_format = '{:,.2f}'.format
-
-def carregar_mapa_naturezas() -> Dict[str, str]:
-    """Carrega o mapeamento de nomes de natureza do CSV."""
-    caminho_csv = CONFIG.paths.mapa_naturezas_csv
-    if not caminho_csv.exists():
-        logger.warning(f"Arquivo de mapeamento '{caminho_csv.name}' não encontrado. Usando nomes originais.")
-        return {}
-    try:
-        df_mapa = pd.read_csv(caminho_csv)
-        return pd.Series(df_mapa.nome_simplificado.values, index=df_mapa.nome_original).to_dict()
-    except Exception as e:
-        logger.error(f"Falha ao carregar mapa de naturezas: {e}")
-        return {}
-
-def obter_unidades_disponiveis(engine_db: Any) -> List[str]:
-    logger.info("Consultando unidades de negócio disponíveis...")
-    PPA_FILTRO = os.getenv("PPA_FILTRO", 'PPA 2025 - 2025/DEZ')
-    ANO_FILTRO = int(os.getenv("ANO_FILTRO", 2025))
-    query_unidades = "SELECT DISTINCT UNIDADE FROM dbo.vw_Analise_Planejado_vs_Executado_v2(?, ?, ?)"
-    params = (f'{ANO_FILTRO}-01-01', f'{ANO_FILTRO}-12-31', PPA_FILTRO)
-    try:
-        df_unidades = pd.read_sql(query_unidades, engine_db, params=params)
-        unidades = sorted(df_unidades['UNIDADE'].str.upper().str.replace('SP - ', '', regex=False).str.strip().unique())
-        logger.info(f"{len(unidades)} unidades encontradas.")
-        return unidades
-    except Exception as e:
-        logger.exception(f"Falha ao consultar as unidades: {e}")
+def obter_unidades_disponiveis(df_base: pd.DataFrame) -> list[str]:
+    """Obtém a lista de unidades únicas a partir da coluna padronizada."""
+    if df_base is None or df_base.empty:
         return []
+    return sorted(df_base['UNIDADE_FINAL'].unique())
 
-def selecionar_unidades_interativamente(unidades_disponiveis: List[str]) -> List[str]:
+def selecionar_unidades_interativamente(unidades_disponiveis: list[str]) -> list[str]:
+    """Permite que o usuário selecione interativamente quais relatórios gerar."""
     if not unidades_disponiveis: return []
-    print("\n--- Unidades Disponíveis ---")
+    print("\n--- Unidades Disponíveis para Geração de Relatório ---")
     for i, unidade in enumerate(unidades_disponiveis, 1):
         print(f"  {i:2d}) {unidade}")
-    print("  all) Todas")
+    print("  all) Gerar para todas as unidades")
     print("-" * 55)
     while True:
         escolha_str = input("Escolha os números (ex: 1, 3, 5), 'all' ou enter para sair: ").strip()
@@ -95,204 +58,131 @@ def selecionar_unidades_interativamente(unidades_disponiveis: List[str]) -> List
         except ValueError:
             print("Entrada inválida. Use números separados por vírgula ou 'all'.")
 
-def criar_grafico_barras_trimestral(df: pd.DataFrame, titulo: str) -> go.Figure:
-    if df.empty: return go.Figure().update_layout(title=f'{titulo} (Sem Dados)')
-    
-    df_agrupado = df.groupby('nm_trimestre', observed=False)[['Valor_Planejado', 'Valor_Executado']].sum().reset_index()
-    
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=df_agrupado['nm_trimestre'],
-        y=df_agrupado['Valor_Planejado'],
-        name='Planejado',
-        marker_color='#aed6f1'
-    ))
-    fig.add_trace(go.Bar(
-        x=df_agrupado['nm_trimestre'],
-        y=df_agrupado['Valor_Executado'],
-        name='Executado',
-        marker_color='#3498db'
-    ))
-    fig.update_layout(
-        barmode='group',
-        title_text=titulo,
-        xaxis_title='Trimestre',
-        yaxis_title='Valor (R$)',
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
-    return fig
+def gerar_relatorio_para_unidade(unidade_alvo: str, df_base_total: pd.DataFrame):
+    """Gera um dashboard HTML específico para uma única unidade de negócio."""
+    logger.info(f"Iniciando a geração do dashboard para a unidade: '{unidade_alvo}'...")
 
-def criar_grafico_dispersao_natureza(df: pd.DataFrame, titulo: str) -> go.Figure:
-    if df.empty: return go.Figure().update_layout(title=f'{titulo} (Sem Dados)')
+    # Filtra o DataFrame principal para obter dados apenas da unidade alvo
+    df_unidade = df_base_total[df_base_total['UNIDADE_FINAL'] == unidade_alvo].copy()
 
-    df_natureza = df.groupby('natureza_simplificada').agg(
-        Valor_Planejado=('Valor_Planejado', 'sum'),
-        Valor_Executado=('Valor_Executado', 'sum')
-    ).reset_index()
-
-    df_natureza = df_natureza[df_natureza['Valor_Planejado'] > 0]
-    df_natureza['perc_execucao'] = (df_natureza['Valor_Executado'] / df_natureza['Valor_Planejado']) * 100
-    df_natureza['tamanho_bolha'] = np.sqrt(df_natureza['Valor_Planejado']) / np.sqrt(df_natureza['Valor_Planejado'].max()) * 50
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=df_natureza['Valor_Planejado'],
-        y=df_natureza['Valor_Executado'],
-        mode='markers+text',
-        text=df_natureza['natureza_simplificada'],
-        textposition="top center",
-        marker=dict(
-            size=df_natureza['tamanho_bolha'],
-            color=df_natureza['perc_execucao'],
-            colorscale='RdYlGn', # Vermelho-Amarelo-Verde
-            cmin=50, cmax=110, # Define o range da escala de cor
-            colorbar=dict(title="Execução (%)"),
-            showscale=True
-        ),
-        hovertemplate='<b>%{text}</b><br>Planejado: R$ %{x:,.2f}<br>Executado: R$ %{y:,.2f}<br>Execução: %{marker.color:.1f}%<extra></extra>'
-    ))
-
-    max_val = max(df_natureza['Valor_Planejado'].max(), df_natureza['Valor_Executado'].max())
-    fig.add_shape(type='line', x0=0, y0=0, x1=max_val, y1=max_val,
-                  line=dict(color='grey', width=2, dash='dash'), name='Meta 100%')
-
-    fig.update_layout(
-        title_text=titulo,
-        xaxis_title='Valor Planejado (R$)',
-        yaxis_title='Valor Executado (R$)',
-        height=600
-    )
-    return fig
-
-
-def gerar_relatorio_para_unidade(unidade_alvo: str, df_base: pd.DataFrame, mapa_naturezas: Dict[str, str]) -> None:
-    logger.info(f"Iniciando geração de relatório para a unidade: {unidade_alvo}")
-
-    df_unidade_filtrada = df_base[df_base['nm_unidade_padronizada'] == unidade_alvo].copy()
-    if df_unidade_filtrada.empty: 
-        logger.warning(f"Nenhum dado encontrado para a unidade '{unidade_alvo}'. Pulando.")
+    if df_unidade.empty:
+        logger.warning(f"Nenhum dado encontrado para a unidade '{unidade_alvo}'. O relatório não será gerado.")
         return
 
-    # Aplica o mapa de nomes simplificados
-    df_unidade_filtrada['natureza_simplificada'] = df_unidade_filtrada['Descricao_Natureza_Orcamentaria'].map(mapa_naturezas).fillna(df_unidade_filtrada['Descricao_Natureza_Orcamentaria'])
+    # --- 1. Cálculos de KPIs ---
+    df_exclusivos = df_unidade[df_unidade['tipo_projeto'] == 'Exclusivo']
+    df_compartilhados = df_unidade[df_unidade['tipo_projeto'] == 'Compartilhado']
+
+    total_planejado = df_unidade['Valor_Planejado'].sum()
+    total_executado = df_unidade['Valor_Executado'].sum()
+    total_perc = (total_executado / total_planejado * 100) if total_planejado else 0
+
+    exclusivo_planejado = df_exclusivos['Valor_Planejado'].sum()
+    exclusivo_executado = df_exclusivos['Valor_Executado'].sum()
+    exclusivo_perc = (exclusivo_executado / exclusivo_planejado * 100) if exclusivo_planejado else 0
+
+    compartilhado_planejado = df_compartilhados['Valor_Planejado'].sum()
+    compartilhado_executado = df_compartilhados['Valor_Executado'].sum()
+    compartilhado_perc = (compartilhado_executado / compartilhado_planejado * 100) if compartilhado_planejado else 0
     
-    df_exclusivos = df_unidade_filtrada[df_unidade_filtrada['tipo_projeto'] == 'Exclusivo'].copy()
-    df_compartilhados = df_unidade_filtrada[df_unidade_filtrada['tipo_projeto'] == 'Compartilhado'].copy()
+    kpi_dict = {
+        "kpi_total_perc": f"{total_perc:.1f}%",
+        "kpi_total_valores": f"{formatar_brl(total_executado)} de {formatar_brl(total_planejado)}",
+        "kpi_exclusivo_perc": f"{exclusivo_perc:.1f}%",
+        "kpi_exclusivo_valores": f"{formatar_brl(exclusivo_executado)} de {formatar_brl(exclusivo_planejado)}",
+        "kpi_compartilhado_perc": f"{compartilhado_perc:.1f}%",
+        "kpi_compartilhado_valores": f"{formatar_brl(compartilhado_executado)} de {formatar_brl(compartilhado_planejado)}",
+    }
+    logger.info(f"[{unidade_alvo}] KPIs calculados.")
 
-    # Cálculos de KPIs
-    total_planejado_unidade = df_unidade_filtrada['Valor_Planejado'].sum()
-    total_executado_unidade = df_unidade_filtrada['Valor_Executado'].sum()
-    perc_total = (total_executado_unidade / total_planejado_unidade * 100) if total_planejado_unidade > 0 else 0
-    kpi_total_planejado_str = formatar_numero_kpi(total_planejado_unidade)
-    kpi_total_executado_str = formatar_numero_kpi(total_executado_unidade)
+    # --- 2. Preparação de Dados para Gráficos ---
+    dados_graficos = {}
+    meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     
-    planejado_exclusivos = df_exclusivos['Valor_Planejado'].sum()
-    executado_exclusivos = df_exclusivos['Valor_Executado'].sum()
-    perc_exclusivos = (executado_exclusivos / planejado_exclusivos * 100) if planejado_exclusivos > 0 else 0
-    kpi_exclusivos_planejado_str = formatar_numero_kpi(planejado_exclusivos)
-    kpi_exclusivos_executado_str = formatar_numero_kpi(executado_exclusivos)
-
-    planejado_compartilhados = df_compartilhados['Valor_Planejado'].sum()
-    executado_compartilhados = df_compartilhados['Valor_Executado'].sum()
-    perc_compartilhados = (executado_compartilhados / planejado_compartilhados * 100) if planejado_compartilhados > 0 else 0
-    kpi_compartilhados_planejado_str = formatar_numero_kpi(planejado_compartilhados)
-    kpi_compartilhados_executado_str = formatar_numero_kpi(executado_compartilhados)
-    
-    logger.info(f"Gerando gráficos para {unidade_alvo}...")
-    fig_barras_exclusivos = criar_grafico_barras_trimestral(df_exclusivos, "Projetos Exclusivos")
-    fig_barras_compartilhados = criar_grafico_barras_trimestral(df_compartilhados, "Projetos Compartilhados")
-    fig_dispersao_natureza = criar_grafico_dispersao_natureza(df_unidade_filtrada, f"Performance por Natureza Orçamentária - {unidade_alvo}")
-
-    logger.info(f"Montando e salvando o arquivo HTML para {unidade_alvo}...")
-    try:
-        template_path = CONFIG.paths.templates_dir / "template_relatorio.html"
-        template_string = template_path.read_text(encoding='utf-8')
-    except FileNotFoundError:
-        logger.error(f"Arquivo de template não encontrado em '{template_path}'.")
-        return
-
-    contexto = {
-        "unidade_alvo": unidade_alvo,
-        "perc_total": perc_total,
-        "kpi_total_planejado_str": kpi_total_planejado_str,
-        "kpi_total_executado_str": kpi_total_executado_str,
-        "perc_exclusivos": perc_exclusivos,
-        "kpi_exclusivos_planejado_str": kpi_exclusivos_planejado_str,
-        "kpi_exclusivos_executado_str": kpi_exclusivos_executado_str,
-        "perc_compartilhados": perc_compartilhados,
-        "kpi_compartilhados_planejado_str": kpi_compartilhados_planejado_str,
-        "kpi_compartilhados_executado_str": kpi_compartilhados_executado_str,
-        "html_barras_exclusivos": pio.to_html(fig_barras_exclusivos, full_html=False, include_plotlyjs=False),
-        "html_barras_compartilhados": pio.to_html(fig_barras_compartilhados, full_html=False, include_plotlyjs=False),
-        "html_dispersao_natureza": pio.to_html(fig_dispersao_natureza, full_html=False, include_plotlyjs=False),
+    # Gráfico de Evolução Mensal
+    df_trend = df_unidade.groupby(['MES', 'tipo_projeto'])['Valor_Executado'].sum().unstack(fill_value=0).reindex(range(1, 13), fill_value=0)
+    df_trend['Total'] = df_trend.sum(axis=1)
+    dados_graficos['trend'] = {
+        "labels": meses,
+        "executed_total": df_trend['Total'].tolist(),
+        "executed_exclusivo": df_trend.get('Exclusivo', pd.Series([0]*12)).tolist(),
+        "executed_compartilhado": df_trend.get('Compartilhado', pd.Series([0]*12)).tolist()
     }
 
-    html_final = template_string.format(**contexto)
-    caminho_arquivo_html = CONFIG.paths.docs_dir / f"relatorio_{unidade_alvo.replace(' ', '_')}.html"
-    caminho_arquivo_html.parent.mkdir(parents=True, exist_ok=True)
-    with open(caminho_arquivo_html, 'w', encoding='utf-8') as f:
-        f.write(html_final)
-    logger.info(f"Relatório salvo com sucesso em: '{caminho_arquivo_html}'")
+    # Gráfico de Natureza (Top 10)
+    df_nature = df_unidade.groupby('NATUREZA_FINAL')['Valor_Planejado'].sum().nlargest(10).reset_index()
+    dados_graficos['nature'] = {"labels": df_nature['NATUREZA_FINAL'].tolist(), "values": df_nature['Valor_Planejado'].tolist()}
+
+    # Gráfico de Dispersão
+    df_scatter = df_unidade.groupby(['PROJETO', 'tipo_projeto'])[['Valor_Planejado', 'Valor_Executado']].sum().reset_index()
+    df_scatter = df_scatter[df_scatter['Valor_Planejado'] > 0]
+    df_scatter['execution_rate'] = (df_scatter['Valor_Executado'] / df_scatter['Valor_Planejado']) * 100
+    dados_graficos['scatter'] = [
+        {"x": row['Valor_Planejado'], "y": row['execution_rate'], "label": row['PROJETO'], "type": row['tipo_projeto']}
+        for _, row in df_scatter.iterrows()
+    ]
+    logger.info(f"[{unidade_alvo}] Dados para os gráficos agregados.")
+
+    # --- 3. Geração do HTML Final ---
+    try:
+        template_path = CONFIG.paths.base_dir / "dashboard_template.html"
+        template_string = template_path.read_text(encoding='utf-8')
+
+        final_html = template_string.format(**kpi_dict, json_data=json.dumps(dados_graficos))
+        
+        output_filename = f"dashboard_{unidade_alvo.replace(' ', '_').replace('/', '_')}.html"
+        output_path = CONFIG.paths.docs_dir / output_filename
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(final_html)
+        
+        logger.info(f"Dashboard para '{unidade_alvo}' salvo com sucesso em: '{output_path}'")
+
+    except FileNotFoundError:
+        logger.error(f"Arquivo de template 'dashboard_template.html' não encontrado.")
+    except Exception as e:
+        logger.exception(f"Ocorreu um erro ao gerar o HTML para '{unidade_alvo}': {e}")
+
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Gera relatórios de performance orçamentária.")
-    parser.add_argument("--unidade", type=str, help="Gera o relatório para uma unidade específica.")
-    parser.add_argument("--todas-unidades", action="store_true", help="Gera relatórios para todas as unidades.")
+    """Função principal que orquestra a geração dos relatórios."""
+    parser = argparse.ArgumentParser(description="Gera dashboards de performance orçamentária por unidade.")
+    parser.add_argument("--unidade", type=str, help="Gera o dashboard para uma unidade específica (use o nome padronizado).")
+    parser.add_argument("--todas", action="store_true", help="Gera relatórios para todas as unidades disponíveis.")
     args = parser.parse_args()
 
     CONFIG.paths.docs_dir.mkdir(parents=True, exist_ok=True)
-    CONFIG.paths.logs_dir.mkdir(parents=True, exist_ok=True)
-    CONFIG.paths.templates_dir.mkdir(parents=True, exist_ok=True)
-    CONFIG.paths.static_dir.mkdir(parents=True, exist_ok=True)
     
-    logger.info("Estabelecendo conexão com o banco de dados...")
-    try:
-        engine_db = get_conexao(CONFIG.conexoes["FINANCA_SQL"])
-        logger.info("Conexão estabelecida com sucesso.")
-    except Exception as e:
-        logger.critical(f"Falha crítica ao conectar ao banco de dados: {e}")
+    logger.info("Carregando e processando a base de dados centralizada...")
+    df_base_total = obter_dados_processados()
+
+    if df_base_total is None or df_base_total.empty:
+        logger.error("A base de dados não pôde ser carregada. Encerrando.")
         sys.exit(1)
 
+    unidades_disponiveis = obter_unidades_disponiveis(df_base_total)
     unidades_a_gerar = []
+
     if args.unidade:
-        unidades_a_gerar = [args.unidade.upper().strip()]
-    elif args.todas_unidades:
-        unidades_a_gerar = obter_unidades_disponiveis(engine_db)
+        unidade_padronizada_arg = args.unidade.upper().strip()
+        if unidade_padronizada_arg in unidades_disponiveis:
+            unidades_a_gerar = [unidade_padronizada_arg]
+        else:
+            logger.error(f"A unidade '{args.unidade}' não foi encontrada. Unidades disponíveis: {unidades_disponiveis}")
+    elif args.todas:
+        unidades_a_gerar = unidades_disponiveis
     else:
-        unidades_disponiveis = obter_unidades_disponiveis(engine_db)
         if unidades_disponiveis:
             unidades_a_gerar = selecionar_unidades_interativamente(unidades_disponiveis)
 
     if not unidades_a_gerar:
         logger.info("Nenhuma unidade selecionada. Encerrando.")
     else:
-        logger.info(f"Gerando relatórios para: {', '.join(unidades_a_gerar)}")
-        
-        PPA_FILTRO = os.getenv("PPA_FILTRO", 'PPA 2025 - 2025/DEZ')
-        ANO_FILTRO = int(os.getenv("ANO_FILTRO", 2025))
-        sql_query = "SELECT * FROM dbo.vw_Analise_Planejado_vs_Executado_v2(?, ?, ?)"
-        params = (f'{ANO_FILTRO}-01-01', f'{ANO_FILTRO}-12-31', PPA_FILTRO)
-        
-        logger.info("Carregando dados base...")
-        df_base_total = pd.read_sql(sql_query, engine_db, params=params)
-        
-        df_base_total['nm_unidade_padronizada'] = df_base_total['UNIDADE'].str.upper().str.replace('SP - ', '', regex=False).str.strip()
-        unidades_por_projeto = df_base_total.groupby('PROJETO')['nm_unidade_padronizada'].nunique().reset_index()
-        unidades_por_projeto.rename(columns={'nm_unidade_padronizada': 'contagem_unidades'}, inplace=True)
-        unidades_por_projeto['tipo_projeto'] = np.where(unidades_por_projeto['contagem_unidades'] > 1, 'Compartilhado', 'Exclusivo')
-        df_base_total = pd.merge(df_base_total, unidades_por_projeto[['PROJETO', 'tipo_projeto']], on='PROJETO', how='left')
-        
-        mapa_trimestre_num = {1: '1T', 2: '1T', 3: '1T', 4: '2T', 5: '2T', 6: '2T', 7: '3T', 8: '3T', 9: '3T', 10: '4T', 11: '4T', 12: '4T'}
-        df_base_total['nm_trimestre'] = pd.to_numeric(df_base_total['MES'], errors='coerce').map(mapa_trimestre_num)
-        trimestre_dtype = pd.CategoricalDtype(categories=['1T', '2T', '3T', '4T'], ordered=True)
-        df_base_total['nm_trimestre'] = df_base_total['nm_trimestre'].astype(trimestre_dtype)
-        
-        mapa_naturezas = carregar_mapa_naturezas()
-
+        logger.info(f"Gerando dashboards para: {', '.join(unidades_a_gerar)}")
         for unidade in unidades_a_gerar:
-            gerar_relatorio_para_unidade(unidade, df_base=df_base_total, mapa_naturezas=mapa_naturezas)
+            gerar_relatorio_para_unidade(unidade, df_base_total)
 
-    logger.info("\n--- FIM DO SCRIPT DE GERAÇÃO DE RELATÓRIOS ---")
+    logger.info("\n--- FIM DO SCRIPT DE GERAÇÃO DE DASHBOARD ---")
 
 if __name__ == "__main__":
     main()

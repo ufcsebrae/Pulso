@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Execução Orçamentária 2025</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #F3F4F6;
+            color: #1F2937;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            margin: auto;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            height: 100%;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .text-primary { color: #4F46E5; }
+        .text-secondary { color: #10B981; }
+        .text-accent { color: #F59E0B; }
+    </style>
+</head>
+<body class="antialiased">
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold text-primary tracking-tight">Monitoramento Orçamentário 2025</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="mb-8 p-6 bg-white rounded-lg shadow-md">
+            <h1 class="text-3xl font-bold text-gray-900 mb-4">Visão Geral da Execução</h1>
+            <p class="text-lg text-gray-600 max-w-4xl mb-6">
+                Este painel consolida os dados financeiros de 2025, analisando a relação entre o <strong>Valor Planejado</strong> e o <strong>Valor Executado</strong>. Para uma análise mais clara, os projetos foram divididos em duas categorias:
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                    <h3 class="font-bold text-blue-800">Projetos Exclusivos</h3>
+                    <p class="text-sm text-blue-700 mt-1">
+                        São projetos cujo orçamento e execução pertencem a uma <strong>única unidade</strong> de negócio. A performance aqui reflete diretamente o desempenho daquela unidade específica.
+                    </p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                    <h3 class="font-bold text-green-800">Projetos Compartilhados</h3>
+                    <p class="text-sm text-green-700 mt-1">
+                        São projetos que envolvem <strong>duas ou mais unidades</strong>, com orçamento e execução distribuídos entre elas. A análise desses projetos requer uma visão colaborativa.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div class="card border-l-4 border-indigo-500">
+                <h3 class="text-sm font-medium text-gray-500 uppercase">Execução Total</h3>
+                <p class="text-3xl font-bold text-gray-900 mt-2">91.5%</p>
+                <p class="mt-1 text-sm text-gray-500">R$ 807.74 M de R$ 882.88 M</p>
+            </div>
+            <div class="card border-l-4 border-blue-500">
+                <h3 class="text-sm font-medium text-gray-500 uppercase">Execução Proj. Exclusivos</h3>
+                <p class="text-3xl font-bold text-gray-900 mt-2">87.0%</p>
+                <p class="mt-1 text-sm text-gray-500">R$ 446.92 M de R$ 513.57 M</p>
+            </div>
+            <div class="card border-l-4 border-green-500">
+                <h3 class="text-sm font-medium text-gray-500 uppercase">Execução Proj. Compartilhados</h3>
+                <p class="text-3xl font-bold text-gray-900 mt-2">97.7%</p>
+                <p class="mt-1 text-sm text-gray-500">R$ 360.83 M de R$ 369.31 M</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+            <div class="lg:col-span-3">
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800">Evolução Mensal: Executado</h2>
+                    <p class="text-sm text-gray-500 mt-1 mb-6">Comparativo da execução por tipo de projeto ao longo dos meses.</p>
+                    <div class="chart-container"><canvas id="trendChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+            <div class="card">
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Composição por Natureza (Top 10)</h2>
+                <p class="text-sm text-gray-500 mb-4">Como o orçamento total planejado está alocado entre as principais naturezas de despesa.</p>
+                <div class="chart-container"><canvas id="natureChart"></canvas></div>
+            </div>
+            <div class="card">
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Matriz de Eficiência de Projetos</h2>
+                <p class="text-sm text-gray-500 mb-4">
+                    Relação entre Tamanho do Orçamento (Eixo X) e % de Execução (Eixo Y).
+                    <br><span class="text-xs text-blue-500">■ Exclusivo</span> | <span class="text-xs text-green-500">■ Compartilhado</span>
+                </p>
+                <div class="chart-container"><canvas id="scatterChart"></canvas></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const chartData = {
+    "trend": {
+        "labels": [
+            "Jan",
+            "Fev",
+            "Mar",
+            "Abr",
+            "Mai",
+            "Jun",
+            "Jul",
+            "Ago",
+            "Set",
+            "Out",
+            "Nov",
+            "Dez"
+        ],
+        "executed_total": [
+            40869215.13,
+            46371066.59,
+            48323589.18,
+            54431056.72,
+            58766606.22,
+            59313745.04,
+            70600860.50999999,
+            60007029.860000014,
+            73003139.58000001,
+            82586013.04,
+            115091046.58,
+            98379584.32999998
+        ],
+        "executed_exclusivo": [
+            13949494.670000002,
+            19519013.080000006,
+            20740381.11,
+            25159972.359999996,
+            30446492.24,
+            29501668.729999997,
+            42844457.04,
+            31346973.75000001,
+            43593560.92000002,
+            52285250.86000001,
+            69047407.31,
+            68481000.94999999
+        ],
+        "executed_compartilhado": [
+            26919720.46,
+            26852053.509999998,
+            27583208.07,
+            29271084.36,
+            28320113.98,
+            29812076.310000002,
+            27756403.47,
+            28660056.11,
+            29409578.66,
+            30300762.18,
+            46043639.269999996,
+            29898583.38
+        ]
+    },
+    "nature": {
+        "labels": [
+            "Servi\u00e7os Especializados",
+            "Pessoal",
+            "Servi\u00e7os Contratados",
+            "Benef\u00edcios Sociais",
+            "Alugu\u00e9is E Encargos",
+            "Divulga\u00e7\u00e3o, An\u00fancios, Publicidade E Propaganda",
+            "Doa\u00e7\u00f5es E Subven\u00e7\u00f5es",
+            "Encargos Sociais",
+            "Bens M\u00f3veis",
+            "Despesas Com Viagens"
+        ],
+        "values": [
+            294796801.0,
+            226719532.0,
+            118359273.0,
+            70771458.0,
+            33829233.0,
+            29993309.0,
+            24439405.0,
+            16676177.0,
+            16629837.0,
+            13452056.0
+        ]
+    },
+    "scatter": [
+        {
+            "x": 5249500.0,
+            "y": 99.7142585008096,
+            "label": "ALI Rural",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 4864896.0,
+            "y": 96.9931636770858,
+            "label": "Acelera\u00e7\u00e3o de Startups",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 23950000.0,
+            "y": 99.91973569937372,
+            "label": "Acesso a Capital",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 9159815.0,
+            "y": 96.41798464270295,
+            "label": "Administra\u00e7\u00e3o",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 24750000.0,
+            "y": 61.45399066666663,
+            "label": "Agro Sempre",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 500000.0,
+            "y": 0.0,
+            "label": "Amplia\u00e7\u00e3o de canais - Poupatempo",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 2588200.0,
+            "y": 91.24980836102311,
+            "label": "Aprendizes e Estagi\u00e1rios",
+            "type": "Compartilhado"
+        },
+        {
+            "x": 500000.0,
+            "y": 50.17917200000001,
+            "label": "Aquisi\u00e7\u00e3o de Imobilizado - Escrit\u00f3rios Regionais",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 575360.0,
+            "y": 75.20418868186874,
+            "label": "Atra\u00e7\u00e3o de Pessoas",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 4531973.0,
+            "y": 93.9533450442004,
+            "label": "Atra\u00e7\u00e3o e Desenvolvimento de Pessoas",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 5906.0,
+            "y": 99.99271926854047,
+            "label": "A\u00e7\u00f5es de lembrete e oferta automatizado",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1157281.0,
+            "y": 99.99536759006673,
+            "label": "Bem-estar",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1500600.0,
+            "y": 47.86057576969212,
+            "label": "Capacita\u00e7\u00e3o Rede Sebrae Aqui",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1210000.0,
+            "y": 95.40273636363635,
+            "label": "Capacita\u00e7\u00e3o de Final de Ano",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 100000.0,
+            "y": 0.0,
+            "label": "Capacita\u00e7\u00e3o para gestores - startups e economia criativa",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 582000.0,
+            "y": 0.0,
+            "label": "Capta\u00e7\u00e3o de Receitas por Editais",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 7527593.0,
+            "y": 99.99915590548001,
+            "label": "Central de Atendimento",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 102496.0,
+            "y": 99.99937558538869,
+            "label": "Ciclo Avaliativo",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 8694569.0,
+            "y": 61.76220327885142,
+            "label": "Cidade Empreendedora SP",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 410960.0,
+            "y": 55.8055820517812,
+            "label": "Clima Organizacional",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 902130.0,
+            "y": 97.20789908328068,
+            "label": "Clube de Neg\u00f3cios",
+            "type": "Compartilhado"
+        },
+        {
+            "x": 170000.0,
+            "y": 0.0,
+            "label": "Concilia - Jur\u00eddico e Secretaria Geral",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 300000.0,
+            "y": 1.04,
+            "label": "Conex\u00f5es Corporativas - Encadeamento Produtivo Direcional",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 72495.0,
+            "y": 99.99862059452376,
+            "label": "Conex\u00f5es Corporativas Sebrae-SP - Lojas Renner",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 376233.0,
+            "y": 11.596388408247018,
+            "label": "Conex\u00f5es Corporativas Sebrae-SP Intercement",
+            "type": "Compartilhado"
+        },
+        {
+            "x": 420438.0,
+            "y": 30.57722898501087,
+            "label": "Conex\u00f5es Corporativas Sebrae-SP Raizen",
+            "type": "Compartilhado"
+        },
+        {
+            "x": 92000.0,
+            "y": 99.36673913043478,
+            "label": "Conex\u00f5es Corporativas Sebrae-SP e Grupo Soma/Hering",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 2570601.0,
+            "y": 94.23828513254293,
+            "label": "Conex\u00f5es corporativas Sebrae-SP - Serasa",
+            "type": "Compartilhado"
+        },
+        {
+            "x": 8028419.0,
+            "y": 82.25944572648737,
+            "label": "Contrato de Tempor\u00e1rios",
+            "type": "Compartilhado"
+        },
+        {
+            "x": 887881.0,
+            "y": 99.69804512091147,
+            "label": "Crie - Audiovisual",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 116530.0,
+            "y": 89.42619926199262,
+            "label": "Crie - Credenciamento",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 687703.0,
+            "y": 91.75567505158477,
+            "label": "Crie - Games",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1067028.0,
+            "y": 95.35085302353828,
+            "label": "Crie - Mercado",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 2190000.0,
+            "y": 93.43622557077624,
+            "label": "Crie - Moda Autoral",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1350849.0,
+            "y": 99.72994835099999,
+            "label": "Crie - Pol\u00edticas P\u00fablicas",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 336484.0,
+            "y": 9.656081715623923,
+            "label": "Cultura Organizacional",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 26201294.0,
+            "y": 86.12115588642301,
+            "label": "Custeio Administrativo - ERs e Sede",
+            "type": "Compartilhado"
+        },
+        {
+            "x": 14800488.0,
+            "y": 98.9847347600971,
+            "label": "Custeio Projetos e Obras - ERs e Sede",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 3190000.0,
+            "y": 20.637508777429467,
+            "label": "Dep\u00f3sitos Jur\u00eddicos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 68660.0,
+            "y": 99.99943198368774,
+            "label": "Ecossistema",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 6759562.0,
+            "y": 100.82834183634975,
+            "label": "Faculdade Sebrae",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 44425868.0,
+            "y": 99.83488477929122,
+            "label": "Feira do Empreendedor",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1256396.0,
+            "y": 99.99998726516162,
+            "label": "Fomento \u00e0 Inova\u00e7\u00e3o",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 7415000.0,
+            "y": 48.571608091706004,
+            "label": "Fomento \u00e0 inova\u00e7\u00e3o - investimento",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 271000.0,
+            "y": 99.02647232472542,
+            "label": "Gest\u00e3o Operacional - Administra\u00e7\u00e3o Financeira",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 750000.0,
+            "y": 99.18927066666667,
+            "label": "Gest\u00e3o Operacional - Diretoria T\u00e9cnica",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 180000.0,
+            "y": 74.01690555555555,
+            "label": "Gest\u00e3o Operacional - Diretoria de Administra\u00e7\u00e3o e Finan\u00e7as",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 197760.0,
+            "y": 84.8530188106796,
+            "label": "Gest\u00e3o Operacional - Finan\u00e7as e Controladoria",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 151961.0,
+            "y": 89.0613578483953,
+            "label": "Gest\u00e3o Operacional - Gest\u00e3o Estrat\u00e9gica",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 73750.0,
+            "y": 54.43396610169492,
+            "label": "Gest\u00e3o Operacional - Gest\u00e3o de Pessoas",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 78720.0,
+            "y": 70.20135924796749,
+            "label": "Gest\u00e3o Operacional - Infraestrutura da informa\u00e7\u00e3o",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 80000.0,
+            "y": 76.44165,
+            "label": "Gest\u00e3o Operacional - Ouvidoria",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 29000.0,
+            "y": 72.24862068965517,
+            "label": "Gest\u00e3o Operacional - Presid\u00eancia do Conselho",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 39515915.0,
+            "y": 98.55721215110418,
+            "label": "Gest\u00e3o Operacional - Remunera\u00e7\u00e3o de Recursos Humanos - Custeio Administrativo",
+            "type": "Compartilhado"
+        },
+        {
+            "x": 953000.0,
+            "y": 94.1401427072403,
+            "label": "Gest\u00e3o Operacional - Secretaria do Conselho Deliberativo Estadual - CDE",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 580000.0,
+            "y": 95.39786379310344,
+            "label": "Gest\u00e3o Operacional - Superintend\u00eancia",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 750000.0,
+            "y": 98.50159733333334,
+            "label": "Gest\u00e3o Operacional - Tributos",
+            "type": "Compartilhado"
+        },
+        {
+            "x": 1081017.0,
+            "y": 85.14902910870042,
+            "label": "Gest\u00e3o Operacional Auditoria",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 655000.0,
+            "y": 80.08935419847329,
+            "label": "Gest\u00e3o Operacional Jur\u00eddico e Secretaria Geral",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1521704.0,
+            "y": 99.83608507304969,
+            "label": "Gest\u00e3o e Monitoramento de Dados Adhoc",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1622155.0,
+            "y": 88.99212713951503,
+            "label": "Ginga Afrotech Hub",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 385400.0,
+            "y": 34.96886351842242,
+            "label": "Governan\u00e7a Empreendedora - SP",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 37560.0,
+            "y": 93.9297124600639,
+            "label": "Idea\u00e7\u00e3o",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 8654284.0,
+            "y": 80.62360340843908,
+            "label": "Impulsiona - PF",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 5400000.0,
+            "y": 91.41200537037035,
+            "label": "Inbound marketing",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 9563.0,
+            "y": 99.9948760849106,
+            "label": "Inclus\u00e3o SocioProdutiva",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 22260.0,
+            "y": 99.9734950584007,
+            "label": "Jornada de Atendimento Estruturado",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 10000000.0,
+            "y": 99.65363540000001,
+            "label": "Licen\u00e7as e softwares",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 5530533.0,
+            "y": 71.10347953804832,
+            "label": "MEI Competitividade - PJ",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 600000.0,
+            "y": 23.685916666666667,
+            "label": "Mapeamento e Revis\u00e3o de Processos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 3500000.0,
+            "y": 90.29387171428573,
+            "label": "Moderniza\u00e7\u00e3o da Infraestrutura - ERs",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1250000.0,
+            "y": 0.0,
+            "label": "Moderniza\u00e7\u00e3o da Infraestrutura - Edif\u00edcio pr\u00f3prio - ER CENTRO",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1000000.0,
+            "y": 99.99203299999999,
+            "label": "Moderniza\u00e7\u00e3o da Infraestrutura - Edif\u00edcios Pr\u00f3prios SEDE",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 950000.0,
+            "y": 59.17187157894737,
+            "label": "Moderniza\u00e7\u00e3o da Infraestrutura - Escola de Neg\u00f3cios",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 3450379.0,
+            "y": 81.10267451778486,
+            "label": "Novo Sebrae M\u00f3vel",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 284183.0,
+            "y": 83.95758366967763,
+            "label": "Operacionais (Gest\u00e3o Interna da Unidade Gest\u00e3o de Pessoas)",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 7423995.0,
+            "y": 99.66419656802032,
+            "label": "Pesquisas Monitoramento e Dados",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 12448000.0,
+            "y": 100.0,
+            "label": "Plano de Investimentos - Infraestrutura Tecnologica",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 7992.0,
+            "y": 99.994994994995,
+            "label": "Plataforma de Gest\u00e3o WhatsApp Business",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 90000.0,
+            "y": 0.0,
+            "label": "Programa de Fideliza\u00e7\u00e3o",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 3078336.0,
+            "y": 0.0,
+            "label": "Projeto Apex-Brasil - PEIEX",
+            "type": "Compartilhado"
+        },
+        {
+            "x": 1049957.0,
+            "y": 384.94888933546804,
+            "label": "Projeto Apex-Brasil - Peiex",
+            "type": "Compartilhado"
+        },
+        {
+            "x": 600000.0,
+            "y": 86.14833333333331,
+            "label": "Projetos Especiais - Competitividade em CPL, IG e Rotas de Turismo/Rural",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 47075.0,
+            "y": 98.55233138608602,
+            "label": "Projetos Especiais - Setores, Segmentos e Cadeias Produtivas",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 11659266.0,
+            "y": 89.9785084241152,
+            "label": "Pr\u00e9-Acelera\u00e7\u00e3o de Startups",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1095675.0,
+            "y": 59.40404043169736,
+            "label": "Rela\u00e7\u00f5es Governamentais",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 30000.0,
+            "y": 98.82,
+            "label": "SEBRAE COMUNIDADES: Capacita\u00e7\u00e3o Feira do Empreendedor",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 29843943.0,
+            "y": 95.89816141251853,
+            "label": "SEBRAE COMUNIDADES: Empreender para viver melhor - Territ\u00f3rios",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 11294.0,
+            "y": 99.99300513547016,
+            "label": "SEBRAE COMUNIDADES: Pessoas com defici\u00eancia",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 113400.0,
+            "y": 82.47977072310405,
+            "label": "SEBRAE COMUNIDADES: Pot\u00eancia Negra e Quilombos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 2031610.0,
+            "y": 95.65115548751973,
+            "label": "SEBRAE COMUNIDADES: Reescrevendo a minha hist\u00f3ria",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 47100.0,
+            "y": 96.36154989384289,
+            "label": "SEBRAE COMUNIDADES: Refugiados e Imigrantes",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 86900.0,
+            "y": 78.58360184119677,
+            "label": "SEBRAE COMUNIDADES; Economia prateada",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 513895.0,
+            "y": 87.62562780334505,
+            "label": "SP - Atendimento Presencial ER Alto Tiet\u00ea",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 930476.0,
+            "y": 93.91122393269681,
+            "label": "SP - Atendimento Presencial ER Araraquara",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1061818.0,
+            "y": 97.60871637135554,
+            "label": "SP - Atendimento Presencial ER Ara\u00e7atuba",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 687819.0,
+            "y": 95.06895127933367,
+            "label": "SP - Atendimento Presencial ER Baixada Santista",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 986950.0,
+            "y": 89.63135822483407,
+            "label": "SP - Atendimento Presencial ER Barretos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1807284.0,
+            "y": 99.55017916387241,
+            "label": "SP - Atendimento Presencial ER Bauru",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 699172.0,
+            "y": 95.84034686743749,
+            "label": "SP - Atendimento Presencial ER Botucatu",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1059707.0,
+            "y": 94.68534604376492,
+            "label": "SP - Atendimento Presencial ER Campinas",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 469100.0,
+            "y": 89.54228522703048,
+            "label": "SP - Atendimento Presencial ER Cap. Sul",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 493274.0,
+            "y": 55.14728325433735,
+            "label": "SP - Atendimento Presencial ER Capital Centro",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 864927.0,
+            "y": 88.0906712358384,
+            "label": "SP - Atendimento Presencial ER Capital Leste",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 465911.0,
+            "y": 96.91584229606084,
+            "label": "SP - Atendimento Presencial ER Capital Leste II",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 323249.0,
+            "y": 83.2189395790861,
+            "label": "SP - Atendimento Presencial ER Capital Norte",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1180357.0,
+            "y": 79.83373504795583,
+            "label": "SP - Atendimento Presencial ER Franca",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 838202.0,
+            "y": 78.48582561244187,
+            "label": "SP - Atendimento Presencial ER Grande ABC",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 496272.0,
+            "y": 73.57277863752135,
+            "label": "SP - Atendimento Presencial ER Guaratinguet\u00e1",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 407333.0,
+            "y": 94.15785610299191,
+            "label": "SP - Atendimento Presencial ER Guarulhos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 664706.0,
+            "y": 81.09192785983578,
+            "label": "SP - Atendimento Presencial ER Jundia\u00ed",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1319138.0,
+            "y": 78.46662290071244,
+            "label": "SP - Atendimento Presencial ER Mar\u00edlia",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 851064.0,
+            "y": 85.88985317202936,
+            "label": "SP - Atendimento Presencial ER Ourinhos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 769865.0,
+            "y": 88.33002669299162,
+            "label": "SP - Atendimento Presencial ER Piracicaba",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 2075517.0,
+            "y": 93.61710985744757,
+            "label": "SP - Atendimento Presencial ER Presidente Prudente",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 2037989.0,
+            "y": 83.07047682789259,
+            "label": "SP - Atendimento Presencial ER Ribeir\u00e3o Preto",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1260929.0,
+            "y": 93.12052938745956,
+            "label": "SP - Atendimento Presencial ER S.Jos\u00e9 do Rio Preto",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 2599528.0,
+            "y": 86.7951335780957,
+            "label": "SP - Atendimento Presencial ER Sorocaba",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 669403.0,
+            "y": 91.14554759987631,
+            "label": "SP - Atendimento Presencial ER Sudoeste Paulista",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 838630.0,
+            "y": 87.04739277154407,
+            "label": "SP - Atendimento Presencial ER S\u00e3o Carlos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 475996.0,
+            "y": 86.878938058303,
+            "label": "SP - Atendimento Presencial ER S\u00e3o Jos\u00e9 dos Campos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 669007.0,
+            "y": 84.33529395058646,
+            "label": "SP - Atendimento Presencial ER Vale do Ribeira",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1022674.0,
+            "y": 95.45960296242987,
+            "label": "SP - Atendimento Presencial ER Votuporanga",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 3842192.0,
+            "y": 95.83246022062406,
+            "label": "SP - Conecta Tech - Infraestrutura e Nuvem",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 3093313.0,
+            "y": 91.90632923341413,
+            "label": "SP - Conecta Tech - Seguran\u00e7a e Privacidade",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 5899245.0,
+            "y": 77.44404834855987,
+            "label": "SP - Educa\u00e7\u00e3o que Transforma",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 45900.0,
+            "y": 100.0,
+            "label": "SP - Processo Nacional de Integridade - Compliance",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 15088749.0,
+            "y": 99.94201639910638,
+            "label": "SP Agente Local de Inova\u00e7\u00e3o (ALI) - Produtividade",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 622500.0,
+            "y": 86.03029879518071,
+            "label": "SP Atendimento Presencial - ER Capital Oeste",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 530139.0,
+            "y": 92.08287826400246,
+            "label": "SP Atendimento Presencial - ER Osasco",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1098109.0,
+            "y": 65.49349836855905,
+            "label": "SP Atendimento Presencial ER S\u00e3o Jo\u00e3o da Boa Vista",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 450000.0,
+            "y": 35.52748,
+            "label": "Sebrae - Aqui Inaugura\u00e7\u00f5es e Revitaliza\u00e7\u00f5es - II",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1600000.0,
+            "y": 61.62262125000001,
+            "label": "Sebrae Aqui - Inaugura\u00e7\u00f5es e Revitaliza\u00e7\u00f5es",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 30000.0,
+            "y": 54.87030000000001,
+            "label": "Sebrae Comunidades - Lojas Colaborativas",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 3739142.0,
+            "y": 89.78025600525463,
+            "label": "Sebrae Delas - Inclus\u00e3o Produtiva",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 2348462.0,
+            "y": 74.6303193323971,
+            "label": "Sebrae Delas - MEI",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 51320.0,
+            "y": 22.0576773187841,
+            "label": "Sebrae Delas - PJ",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1154363.0,
+            "y": 90.789805286552,
+            "label": "Sebrae Delas - Pessoa F\u00edsica",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 508000.0,
+            "y": 86.00083858267716,
+            "label": "Sebrae Mais Acess\u00edvel - Libras",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 5655724.0,
+            "y": 99.99999080577481,
+            "label": "Sebrae na sua Empresa",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 113976.0,
+            "y": 99.93092405418686,
+            "label": "Semana do MEI",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 8230400.0,
+            "y": 99.8144216562986,
+            "label": "Sistemas e aplica\u00e7\u00f5es",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1977000.0,
+            "y": 0.0,
+            "label": "Solu\u00e7\u00e3o Sebrae na Sua Empresa 2.0",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 8754224.0,
+            "y": 98.87128008147839,
+            "label": "Solu\u00e7\u00f5es Digitais - Atendimento e opera\u00e7\u00e3o",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 435524.0,
+            "y": 51.988638972823544,
+            "label": "Solu\u00e7\u00f5es presenciais, remotas e digitais - Acompanhamento",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 7333532.0,
+            "y": 98.42113459108108,
+            "label": "Solu\u00e7\u00f5es presenciais, remotas e digitais - Desenvolvimento",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 615000.0,
+            "y": 98.02177073170732,
+            "label": "Suporte a Neg\u00f3cio - Cultura Empreendedora",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 101805.0,
+            "y": 96.37965718776091,
+            "label": "Suporte a Neg\u00f3cios - Compliance",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 37080128.0,
+            "y": 91.21317369778228,
+            "label": "Suporte a Neg\u00f3cios - Comunica\u00e7\u00e3o e Marketing",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 1980208.0,
+            "y": 123.03987611402438,
+            "label": "Suporte a Neg\u00f3cios - Conte\u00fado Digital e Endomarketing",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 392000.0,
+            "y": 98.91147704081632,
+            "label": "Suporte a Neg\u00f3cios - Desenvolvimento Setorial e Territorial",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 62183.0,
+            "y": 98.97809690751491,
+            "label": "Suporte a Neg\u00f3cios - ER Alto Tiet\u00ea",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 146305.0,
+            "y": 83.52943508424183,
+            "label": "Suporte a Neg\u00f3cios - ER Araraquara",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 164000.0,
+            "y": 91.59560365853659,
+            "label": "Suporte a Neg\u00f3cios - ER Ara\u00e7atuba",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 140220.0,
+            "y": 92.18068035943517,
+            "label": "Suporte a Neg\u00f3cios - ER Baixada Santista",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 402292.0,
+            "y": 68.11048939576227,
+            "label": "Suporte a Neg\u00f3cios - ER Barretos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 169000.0,
+            "y": 93.57152662721894,
+            "label": "Suporte a Neg\u00f3cios - ER Bauru",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 67735.0,
+            "y": 88.10166088432864,
+            "label": "Suporte a Neg\u00f3cios - ER Botucatu",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 149700.0,
+            "y": 99.5816633266533,
+            "label": "Suporte a Neg\u00f3cios - ER Campinas",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 224121.0,
+            "y": 93.04178546410198,
+            "label": "Suporte a Neg\u00f3cios - ER Capital Centro",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 97750.0,
+            "y": 90.76281329923273,
+            "label": "Suporte a Neg\u00f3cios - ER Capital Leste",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 152000.0,
+            "y": 84.6576644736842,
+            "label": "Suporte a Neg\u00f3cios - ER Capital Leste II",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 94000.0,
+            "y": 90.3195744680851,
+            "label": "Suporte a Neg\u00f3cios - ER Capital Norte",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 113686.0,
+            "y": 85.72308815509385,
+            "label": "Suporte a Neg\u00f3cios - ER Capital Oeste",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 58350.0,
+            "y": 81.88721508140532,
+            "label": "Suporte a Neg\u00f3cios - ER Capital Sul",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 153000.0,
+            "y": 100.0173202614379,
+            "label": "Suporte a Neg\u00f3cios - ER Franca",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 266245.0,
+            "y": 65.80002253563447,
+            "label": "Suporte a Neg\u00f3cios - ER Grande ABC",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 287174.0,
+            "y": 65.33975220597965,
+            "label": "Suporte a Neg\u00f3cios - ER Guaratinguet\u00e1",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 99000.0,
+            "y": 90.84446464646464,
+            "label": "Suporte a Neg\u00f3cios - ER Guarulhos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 165662.0,
+            "y": 87.09679950743079,
+            "label": "Suporte a Neg\u00f3cios - ER Jundia\u00ed",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 122000.0,
+            "y": 75.52936885245902,
+            "label": "Suporte a Neg\u00f3cios - ER Mar\u00edlia",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 88184.0,
+            "y": 96.4234555021319,
+            "label": "Suporte a Neg\u00f3cios - ER Osasco",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 126000.0,
+            "y": 70.5095,
+            "label": "Suporte a Neg\u00f3cios - ER Ourinhos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 205000.0,
+            "y": 83.9785512195122,
+            "label": "Suporte a Neg\u00f3cios - ER Piracicaba",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 242000.0,
+            "y": 82.5942520661157,
+            "label": "Suporte a Neg\u00f3cios - ER Presidente Prudente",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 373065.0,
+            "y": 59.70265235280715,
+            "label": "Suporte a Neg\u00f3cios - ER Ribeir\u00e3o Preto",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 313588.0,
+            "y": 75.58744913708433,
+            "label": "Suporte a Neg\u00f3cios - ER Sorocaba",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 96174.0,
+            "y": 97.63543161353381,
+            "label": "Suporte a Neg\u00f3cios - ER Sudoeste Paulista",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 106767.0,
+            "y": 85.66810905991552,
+            "label": "Suporte a Neg\u00f3cios - ER S\u00e3o Carlos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 243213.0,
+            "y": 51.0320912122296,
+            "label": "Suporte a Neg\u00f3cios - ER S\u00e3o Jos\u00e9 do Rio Preto",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 126000.0,
+            "y": 51.84496825396826,
+            "label": "Suporte a Neg\u00f3cios - ER S\u00e3o Jos\u00e9 dos Campos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 165000.0,
+            "y": 96.24347272727275,
+            "label": "Suporte a Neg\u00f3cios - ER S\u00e3o Jo\u00e3o da Boa Vista",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 233000.0,
+            "y": 81.00855793991416,
+            "label": "Suporte a Neg\u00f3cios - ER Vale do Ribeira",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 159366.0,
+            "y": 59.11232006827052,
+            "label": "Suporte a Neg\u00f3cios - ER Votuporanga",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 654837.0,
+            "y": 92.32400734839356,
+            "label": "Suporte a Neg\u00f3cios - Escola de Neg\u00f3cios Sebrae-SP",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 132000.0,
+            "y": 91.1671287878788,
+            "label": "Suporte a Neg\u00f3cios - Gest\u00e3o de Produtos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 548982.0,
+            "y": 94.06053021774848,
+            "label": "Suporte a Neg\u00f3cios - Inova\u00e7\u00e3o",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 209262.0,
+            "y": 84.24454511569228,
+            "label": "Suporte a Neg\u00f3cios - Marketing Publicidade e Propaganda",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 457700.0,
+            "y": 96.6735612846843,
+            "label": "Suporte a Neg\u00f3cios - Pol\u00edticas P\u00fablicas",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 163919.0,
+            "y": 73.45347397190075,
+            "label": "Suporte a Neg\u00f3cios - Projetos e Obras",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 43452.0,
+            "y": 82.09633618705698,
+            "label": "Suporte a Neg\u00f3cios - Relacionamento com Cliente",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 283827751.0,
+            "y": 99.39077394162209,
+            "label": "Suporte a Neg\u00f3cios - Remunera\u00e7\u00e3o de Recursos Humanos Relacionado a Neg\u00f3cios",
+            "type": "Compartilhado"
+        },
+        {
+            "x": 345000.0,
+            "y": 77.56555942028986,
+            "label": "Suporte a Neg\u00f3cios - Suprimentos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 597500.0,
+            "y": 88.6299430962343,
+            "label": "Suporte a Neg\u00f3cios - U.Atendimento ao Cliente",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 375100.0,
+            "y": 79.1449320181285,
+            "label": "Suporte a Neg\u00f3cios - Unidade Acesso a Mercado e Servi\u00e7os Financeiros",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 200000.0,
+            "y": 89.362355,
+            "label": "Suporte a Neg\u00f3cios - Unidade de Administra\u00e7\u00e3o",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 2478226.0,
+            "y": 96.59571322389485,
+            "label": "Suporte \u00e0 Solu\u00e7\u00f5es - Projetos Internos",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 38820000.0,
+            "y": 57.57080847501287,
+            "label": "Sustentabilidade, Efici\u00eancia Empresarial e Solu\u00e7\u00f5es Tecnol\u00f3gicas",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 5499200.0,
+            "y": 98.49509765056736,
+            "label": "Sustenta\u00e7\u00e3o - Infraestrutura Computacional",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 6237071.0,
+            "y": 99.76520453270453,
+            "label": "Sustenta\u00e7\u00e3o - Seguran\u00e7a da informa\u00e7\u00e3o",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 619340.0,
+            "y": 99.90021958859433,
+            "label": "Sustenta\u00e7\u00e3o - Servi\u00e7os de Comunica\u00e7\u00e3o",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 341480.0,
+            "y": 50.93327281246339,
+            "label": "Territ\u00f3rios Empreendedores - SP",
+            "type": "Exclusivo"
+        },
+        {
+            "x": 13527400.0,
+            "y": 96.75491676153584,
+            "label": "Venda Mais",
+            "type": "Exclusivo"
+        }
+    ]
+};
+
+        const formatBRL = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+        const ctxTrend = document.getElementById('trendChart').getContext('2d');
+        new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: chartData.trend.labels,
+                datasets: [
+                    {
+                        label: 'Executado (Total)', data: chartData.trend.executed_total,
+                        borderColor: '#4338CA', backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        fill: false, tension: 0.3, pointRadius: 3
+                    },
+                    {
+                        label: 'Executado (Exclusivos)', data: chartData.trend.executed_exclusivo,
+                        borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: false, tension: 0.3, pointRadius: 3, borderDash: [5, 5]
+                    },
+                    {
+                        label: 'Executado (Compartilhados)', data: chartData.trend.executed_compartilhado,
+                        borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: false, tension: 0.3, pointRadius: 3, borderDash: [5, 5]
+                    },
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : (v / 1000).toFixed(0) + 'k'; } } }, x: { grid: { display: false } } }
+            }
+        });
+
+        const ctxNature = document.getElementById('natureChart').getContext('2d');
+        new Chart(ctxNature, {
+            type: 'doughnut',
+            data: {
+                labels: chartData.nature.labels,
+                datasets: [{
+                    data: chartData.nature.values,
+                    backgroundColor: ['#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#10b981', '#34d399', '#6ee7b7', '#f59e0b', '#fbbf24', '#fcd34d'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '65%',
+                plugins: { legend: { position: 'right', labels: { boxWidth: 12, usePointStyle: true } } }
+            }
+        });
+
+        const ctxScatter = document.getElementById('scatterChart').getContext('2d');
+        new Chart(ctxScatter, {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    {
+                        label: 'Projetos Exclusivos',
+                        data: chartData.scatter.filter(p => p.type === 'Exclusivo'),
+                        backgroundColor: '#3B82F6'
+                    },
+                    {
+                        label: 'Projetos Compartilhados',
+                        data: chartData.scatter.filter(p => p.type === 'Compartilhado'),
+                        backgroundColor: '#10B981'
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { 
+                        type: 'logarithmic', 
+                        title: { display: true, text: 'Orçamento Planejado (R$)' }, 
+                        ticks: { 
+                            callback: function(v) {
+                                if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+                                if (v >= 1000) return (v / 1000).toFixed(0) + 'k';
+                                return v;
+                            }
+                        } 
+                    },
+                    y: { title: { display: true, text: '% Execução' }, min: 0, max: 110 }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                var raw = context.raw;
+                                return [
+                                    'Projeto: ' + raw.label,
+                                    'Planejado: ' + formatBRL(raw.x),
+                                    'Execução: ' + raw.y.toFixed(1) + '%'
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

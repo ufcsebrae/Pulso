@@ -1,44 +1,10 @@
 /* docs/static/style.css */
 
-/* --- Variáveis de Cor para Fácil Customização --- */
-:root {
-    --bg-color: #f8f9fa;
-    --card-bg: #ffffff;
-    --text-color: #495057;
-    --header-bg: #2c3e50;
-    --header-text: #ffffff;
-    --primary-color: #3498db;
-    --accent-color: #2980b9;
-    --kpi-value-color: #2c3e50;
-    --green-text: #27ae60;
-    --red-text: #c0392b;
-    --border-color: #dee2e6;
-    --shadow-color: rgba(0, 0, 0, 0.05);
-}
-
-/* --- Modo Escuro --- */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --bg-color: #1a1a1a;
-        --card-bg: #2c2c2c;
-        --text-color: #bdc3c7;
-        --header-bg: #1f2933;
-        --header-text: #ecf0f1;
-        --primary-color: #3498db;
-        --accent-color: #5dade2;
-        --kpi-value-color: #ecf0f1;
-        --green-text: #2ecc71;
-        --red-text: #e74c3c;
-        --border-color: #4a4a4a;
-        --shadow-color: rgba(0, 0, 0, 0.2);
-    }
-}
-
-/* --- Estrutura e Layout --- */
+/* --- Estilo Único e Limpo --- */
 body {
     font-family: 'Segoe UI', Arial, sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-color);
+    background-color: #f4f6f9; /* Um cinza muito claro para o fundo */
+    color: #495057;
     margin: 0;
     padding: 20px;
 }
@@ -48,43 +14,44 @@ body {
     margin: auto;
 }
 
-/* --- Tipografia e Cabeçalhos --- */
+/* --- Cabeçalho Principal --- */
 .header {
-    background-color: var(--header-bg);
-    color: var(--header-text);
-    padding: 20px 30px;
+    background-color: #004085; /* Azul corporativo */
+    color: #ffffff;
+    padding: 25px 30px;
     border-radius: 8px;
     margin-bottom: 30px;
 }
 
 .header h1 {
     margin: 0;
-    font-size: 2rem;
+    font-size: 2.2rem;
     font-weight: 600;
 }
 
 .header h2 {
     margin: 5px 0 0 0;
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     font-weight: 300;
-    color: var(--accent-color);
+    color: #aed6f1; /* Um azul mais claro para o subtítulo */
 }
 
+/* --- Cards --- */
 .card {
-    background-color: var(--card-bg);
+    background-color: #ffffff;
     border: none;
     border-radius: 8px;
-    box-shadow: 0 4px 12px var(--shadow-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     margin-bottom: 30px;
 }
 
 .card-header {
     background-color: transparent;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid #e9ecef;
     padding: 1rem 1.5rem;
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--kpi-value-color);
+    color: #2c3e50;
 }
 
 /* --- KPIs da Visão Geral --- */
@@ -96,28 +63,29 @@ body {
 .kpi-label {
     font-size: 0.85rem;
     text-transform: uppercase;
-    color: var(--text-color);
+    color: #6c757d;
     margin-bottom: 0.5rem;
 }
 
 .kpi-value {
-    font-size: 2.2rem;
+    font-size: 2.5rem;
     font-weight: 700;
-    color: var(--kpi-value-color);
+    color: #004085;
     line-height: 1.2;
-}
-
-.kpi-comparison.positive {
-    color: var(--green-text);
-}
-
-.kpi-comparison.negative {
-    color: var(--red-text);
 }
 
 .kpi-comparison {
     font-size: 0.9rem;
     font-weight: 600;
+    color: #6c757d;
+}
+
+.kpi-comparison .positive {
+    color: #28a745;
+}
+
+.kpi-comparison .negative {
+    color: #dc3545;
 }
 
 /* --- Gráficos --- */
@@ -133,21 +101,21 @@ body {
 }
 .table {
     margin-bottom: 0;
-    color: var(--text-color);
 }
 .table thead th {
-    background-color: var(--bg-color);
+    background-color: #f8f9fa;
     border-top: none;
-    border-bottom: 2px solid var(--border-color);
+    border-bottom: 2px solid #dee2e6;
     font-weight: 600;
+    color: #495057;
 }
 .table td, .table th {
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid #e9ecef;
     padding: 0.75rem;
     vertical-align: middle;
 }
 .table tbody tr:hover {
-    background-color: rgba(0,0,0,0.05);
+    background-color: #f1f1f1;
 }
 .table td:not(:first-child), .table th:not(:first-child) {
     text-align: right;
@@ -156,6 +124,8 @@ body {
 /* --- Responsividade --- */
 @media (max-width: 768px) {
     body { padding: 10px; }
-    .kpi-card { border-bottom: 1px solid var(--border-color); }
+    .kpi-card { border-bottom: 1px solid #e9ecef; }
     .kpi-card:last-child { border-bottom: none; }
+    .header h1 { font-size: 1.8rem; }
+    .header h2 { font-size: 1.1rem; }
 }

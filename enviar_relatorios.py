@@ -1,65 +1,37 @@
-# -*- coding: utf-8 -*-
-"""
-Script responsável pelo ENVIO dos relatórios de performance via Outlook.
-Este script é executado após a geração dos arquivos HTML e orquestra
-a apresentação dos dados, incluindo resumo executivo, screenshots e
-confirmação do destinatário.
-"""
-import argparse
+# enviar_relatorios.py
 import logging
-import os
 import sys
-import time
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-
-import numpy as np
+import os
 import pandas as pd
-import urllib3
+from pathlib import Path
 import win32com.client as win32
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+import time
 
-# --- Supressão de Avisos Específicos ---
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# --- Inicialização Crítica ---
+# --- Módulo de Dados Centralizado ---
 try:
-    from logger_config import configurar_logger
-    configurar_logger("envio_relatorios.log")
-    from inicializacao import carregar_drivers_externos
-    carregar_drivers_externos()
-except (ImportError, FileNotFoundError, Exception) as e:
+    from processamento_dados_base import obter_dados_processados
+except ImportError:
     logging.basicConfig(level=logging.INFO)
-    logging.critical("Falha gravíssima na inicialização do envio: %s", e, exc_info=True)
+    logging.critical("Erro: O arquivo 'processamento_dados_base.py' não foi encontrado.")
     sys.exit(1)
+
+from config import CONFIG
 
 logger = logging.getLogger(__name__)
 
-# --- Importações do Projeto ---
-try:
-    from config import CONFIG
-    from database import get_conexao
-except ImportError as e:
-    logger.critical("Erro de importação: %s. Verifique config.py e database.py.", e)
-    sys.exit(1)
-
-
-# --- Funções Auxiliares de Lógica e Apresentação ---
-
-def carregar_gerentes_do_csv() -> Dict[str, Dict[str, str]]:
+def carregar_gerentes_do_csv() -> dict:
     """Carrega os dados de gerentes do arquivo CSV e os transforma em um dicionário."""
     caminho_csv = CONFIG.paths.gerentes_csv
     if not caminho_csv.exists():
         logger.error(f"Arquivo de gerentes não encontrado: {caminho_csv}")
         return {}
     try:
-        df_gerentes = pd.read_csv(caminho_csv)
-        colunas_necessarias = {'unidade', 'email', 'gerente'}
-        if not colunas_necessarias.issubset(df_gerentes.columns):
-            raise ValueError(f"O arquivo CSV deve conter as colunas: {', '.join(colunas_necessarias)}")
+        # CORREÇÃO: Usando a vírgula como separador, que é o padrão para este arquivo.
+        df_gerentes = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig')
         gerentes_dict = {
             str(row['unidade']).upper().strip(): {'email': str(row['email']), 'gerente': str(row['gerente'])}
             for _, row in df_gerentes.iterrows()
@@ -70,33 +42,14 @@ def carregar_gerentes_do_csv() -> Dict[str, Dict[str, str]]:
         logger.exception(f"Falha ao processar o arquivo CSV de gerentes: {e}")
         return {}
 
-def enviar_via_outlook(destinatario: str, assunto: str, corpo_html: str, anexo_path: Optional[Path] = None) -> bool:
-    """Cria e exibe um e-mail no Outlook, pronto para ser enviado."""
-    try:
-        outlook = win32.Dispatch('outlook.application')
-        mail = outlook.CreateItem(0)
-        mail.To = destinatario
-        mail.Subject = assunto
+def capturar_screenshot_relatorio(html_path: Path) -> Path | None:
+    """Tira um screenshot de um arquivo HTML local."""
+    if not html_path.exists():
+        logger.error(f"Arquivo HTML para screenshot não encontrado: {html_path}")
+        return None
         
-        if anexo_path and anexo_path.exists():
-            attachment = mail.Attachments.Add(str(anexo_path.resolve()))
-            attachment.PropertyAccessor.SetProperty("http://schemas.microsoft.com/mapi/proptag/0x3712001F", "screenshot_cid")
-            corpo_html = corpo_html.replace('src="cid:screenshot"', 'src="cid:screenshot_cid"')
-        
-        mail.HTMLBody = corpo_html
-        mail.Display()
-        
-        logger.info(f"E-mail para {destinatario} criado e exibido no Outlook para revisão.")
-        return True
-    except Exception as e:
-        logger.exception(f"Falha ao criar e-mail no Outlook para {destinatario}.")
-        return False
-
-def capturar_screenshot_relatorio(html_path: Path) -> Optional[Path]:
-    """Abre um arquivo HTML local em um navegador headless e tira um screenshot."""
     logger.info(f"Capturando screenshot de '{html_path.name}'...")
-    # --- CORREÇÃO AQUI ---
-    screenshot_path = CONFIG.paths.docs_dir / f"screenshot_{html_path.stem}.png"
+    screenshot_path = CONFIG.paths.docs_dir / f"temp_screenshot_{html_path.stem}.png"
     
     options = ChromeOptions()
     options.add_argument("--headless")
@@ -119,140 +72,166 @@ def capturar_screenshot_relatorio(html_path: Path) -> Optional[Path]:
         logger.error(f"Falha ao capturar screenshot para '{html_path.name}': {e}")
         return None
 
-def gerar_resumo_executivo(unidade: str, df_base: pd.DataFrame) -> str:
-    """Analisa os dados de uma unidade e gera 3 bullet points com insights."""
-    logger.info(f"Gerando resumo executivo para a unidade: {unidade}")
-    df_unidade = df_base[df_base['nm_unidade_padronizada'] == unidade]
-    if df_unidade.empty:
-        return "<li>Não foram encontrados dados suficientes para gerar um resumo.</li>"
+def enviar_via_outlook(destinatario: str, assunto: str, corpo_html: str, anexo_screenshot: Path | None):
+    """Cria e exibe um e-mail no Outlook, pronto para ser enviado."""
+    try:
+        outlook = win32.Dispatch('outlook.application')
+        mail = outlook.CreateItem(0)
+        mail.To = destinatario
+        mail.Subject = assunto
+        
+        if anexo_screenshot and anexo_screenshot.exists():
+            attachment = mail.Attachments.Add(str(anexo_screenshot.resolve()))
+            cid = "screenshot_cid"
+            attachment.PropertyAccessor.SetProperty("http://schemas.microsoft.com/mapi/proptag/0x3712001F", cid)
+            corpo_html = corpo_html.replace('cid:screenshot_placeholder', f'cid:{cid}')
+        
+        mail.HTMLBody = corpo_html
+        mail.Display()
+        
+        logger.info(f"E-mail para {destinatario} criado e exibido para revisão.")
+        return True
+    except Exception as e:
+        logger.exception(f"Falha ao criar e-mail no Outlook para {destinatario}.")
+        return False
 
-    total_planejado = df_unidade['Valor_Planejado'].sum()
-    total_executado = df_unidade['Valor_Executado'].sum()
-    perc_execucao = (total_executado / total_planejado * 100) if total_planejado > 0 else 0
-    resumo1 = f"A unidade atingiu <strong>{perc_execucao:.1f}%</strong> da sua meta orçamentária total (Executado: R$ {total_executado:,.2f} de R$ {total_planejado:,.2f})."
-
-    projeto_maior_execucao = df_unidade.groupby('PROJETO')['Valor_Executado'].sum().idxmax()
-    valor_maior_execucao = df_unidade.groupby('PROJETO')['Valor_Executado'].sum().max()
-    resumo2 = f"O projeto de maior destaque em execução financeira é <strong>'{projeto_maior_execucao}'</strong>, com R$ {valor_maior_execucao:,.2f} já realizados."
+def preparar_e_enviar_email_por_unidade(unidade_nome: str, df_base_total: pd.DataFrame, gerentes: dict):
+    """Filtra os dados, calcula KPIs, formata e envia o e-mail para uma unidade."""
     
-    df_com_orcamento = df_unidade[df_unidade['Valor_Planejado'] > 0].copy()
-    if not df_com_orcamento.empty:
-        df_com_orcamento['perc_exec'] = df_com_orcamento['Valor_Executado'] / df_com_orcamento['Valor_Planejado']
-        projeto_menor_execucao = df_com_orcamento.groupby('PROJETO')['perc_exec'].mean().idxmin()
-        perc_menor_execucao = df_com_orcamento.groupby('PROJETO')['perc_exec'].mean().min() * 100
-        resumo3 = f"Ponto de atenção: o projeto <strong>'{projeto_menor_execucao}'</strong> apresenta a menor taxa de execução ({perc_menor_execucao:.1f}%), indicando uma oportunidade de análise."
-    else:
-        resumo3 = "Todos os projetos com orçamento tiveram alguma execução."
+    logger.info(f"\n--- Preparando envio para a unidade: {unidade_nome} ---")
+    
+    info_gerente = gerentes.get(unidade_nome.upper())
+    if not info_gerente:
+        logger.warning(f"Nenhum gerente encontrado para '{unidade_nome}' no arquivo de gerentes. Pulando.")
+        return
 
-    return f"<ul><li>{resumo1}</li><li>{resumo2}</li><li>{resumo3}</li></ul>"
+    nome_arquivo = f"dashboard_{unidade_nome.replace(' ', '_').replace('/', '_')}.html"
+    html_path = CONFIG.paths.docs_dir / nome_arquivo
+    if not html_path.exists():
+        logger.warning(f"Relatório '{nome_arquivo}' não encontrado para a unidade '{unidade_nome}'. Pulando.")
+        return
 
+    df_unidade = df_base_total[df_base_total['UNIDADE_FINAL'] == unidade_nome].copy()
+    if df_unidade.empty:
+        logger.warning(f"Sem dados para a unidade '{unidade_nome}' após o filtro. Pulando.")
+        return
 
-def main() -> None:
+    unidade_planejado = df_unidade['Valor_Planejado'].sum()
+    unidade_executado = df_unidade['Valor_Executado'].sum()
+    unidade_saldo = unidade_planejado - unidade_executado
+    gap_global_perc = (unidade_saldo / unidade_planejado * 100) if unidade_planejado else 0
+
+    df_serv_esp = df_unidade[df_unidade['NATUREZA_FINAL'] == 'Serviços Especializados']
+    saldo_serv_esp = df_serv_esp['Valor_Planejado'].sum() - df_serv_esp['Valor_Executado'].sum()
+    perc_ponto_atencao = (saldo_serv_esp / unidade_saldo * 100) if unidade_saldo > 0 else 0
+
+    logger.info(f"[{unidade_nome}] Gap Global: {gap_global_perc:.1f}%. Ponto de Atenção (Serv. Esp.): {perc_ponto_atencao:.1f}%.")
+
+    screenshot_path = capturar_screenshot_relatorio(html_path)
+
+    assunto = f"[AÇÃO] Monitoramento Estratégico: Execução Orçamentária 2025 - Unidade {unidade_nome}"
+    
+    corpo_email = f"""
+    <html>
+    <body style="font-family: 'Roboto', sans-serif; color: #1F2937;">
+        <p>Prezado(a) {info_gerente['gerente']},</p>
+        <p>Compartilhamos o novo <strong>Dashboard de Execução Orçamentária 2025</strong>. Este modelo foi desenhado para oferecer uma visão clara da eficiência financeira de cada unidade, permitindo identificar gargalos antes que impactem o fechamento do exercício.</p>
+        <p>O arquivo HTML em anexo é interativo e apresenta três frentes críticas para sua gestão:</p>
+        <ol>
+            <li><strong>Aderência ao Planejado:</strong> Comparativo direto entre o que foi orçado e o que foi efetivamente executado por mês.</li>
+            <li><strong>Matriz de Eficiência:</strong> Identificação visual de projetos com alto orçamento e baixa tração (Quadrante de Risco).</li>
+            <li><strong>Composição de Custos:</strong> Detalhamento por Natureza (Serviços, Viagens, Aluguéis) para facilitar realocações.</li>
+        </ol>
+        <div style="background-color: #F3F4F6; border-left: 4px solid #4F46E5; padding: 15px; margin: 20px 0;">
+            <h4 style="margin: 0; font-weight: bold;">Dados Estratégicos Consolidados para a Unidade {unidade_nome}:</h4>
+            <ul style="margin-top: 10px; padding-left: 20px;">
+                <li><strong>Gap Global:</strong> Atualmente, observamos um desvio de <strong>{gap_global_perc:.1f}%</strong> entre o planejado e o executado.</li>
+                <li><strong>Ponto de Atenção:</strong> A natureza de "Serviços Especializados" representa <strong>{perc_ponto_atencao:.1f}%</strong> do orçamento não executado, exigindo revisão dos fluxos de contratação.</li>
+                <li><strong>Eficiência de Projetos:</strong> Solicitamos foco nos projetos situados no quadrante inferior direito da matriz (Alto Orçamento / Baixa Execução).</li>
+            </ul>
+        </div>
+        <p><strong>Ação Esperada:</strong> Solicitamos que cada gestor analise o comportamento de sua respectiva Unidade e valide as previsões para o próximo trimestre. O saldo disponível reportado no dashboard deve ser avaliado para possíveis remanejamentos internos.</p>
+        <p><em>Uma prévia do seu dashboard está abaixo. Clique na imagem para acessar o relatório interativo completo.</em></p>
+        <a href="{html_path.resolve().as_uri()}">
+            <img src="cid:screenshot_placeholder" alt="Prévia do Dashboard" style="width:100%; max-width:800px; border:1px solid #ccc;">
+        </a>
+        <p>Atenciosamente,</p>
+        <p><strong>Equipe de Planejamento e Controladoria</strong></p>
+    </body>
+    </html>
+    """
+
+    enviar_via_outlook(
+        destinatario=info_gerente['email'],
+        assunto=assunto,
+        corpo_html=corpo_email,
+        anexo_screenshot=screenshot_path
+    )
+    
+    if screenshot_path and screenshot_path.exists():
+        os.remove(screenshot_path)
+        logger.info(f"Screenshot temporário '{screenshot_path.name}' removido.")
+
+def main():
     """Ponto de entrada do script de envio de relatórios."""
     
-    # --- CORREÇÃO AQUI ---
-    relatorios_dir = CONFIG.paths.docs_dir
-    relatorios_gerados = sorted(list(relatorios_dir.glob("*.html")))
+    logger.info("Carregando base de dados e arquivo de gerentes...")
+    df_base_total = obter_dados_processados()
+    gerentes = carregar_gerentes_do_csv()
 
-    if not relatorios_gerados:
-        logger.warning(f"Nenhum relatório HTML encontrado na pasta '{relatorios_dir}'. Execute 'gerar_relatorio.py' primeiro.")
+    if df_base_total is None or df_base_total.empty:
+        logger.error("A base de dados não pôde ser carregada. Encerrando.")
+        sys.exit(1)
+    if not gerentes:
+        logger.error("O arquivo de gerentes não pôde ser carregado ou está vazio. Encerrando.")
+        sys.exit(1)
+
+    # MELHORIA: Lista apenas relatórios para os quais existe um gerente correspondente
+    relatorios_dir = CONFIG.paths.docs_dir
+    unidades_com_relatorio = [f.stem.replace('dashboard_', '').replace('_', ' ') for f in relatorios_dir.glob("dashboard_*.html")]
+    
+    unidades_validas_para_envio = sorted([
+        unidade for unidade in unidades_com_relatorio if unidade.upper() in gerentes
+    ])
+
+    if not unidades_validas_para_envio:
+        logger.warning(f"Nenhum relatório HTML na pasta '{relatorios_dir}' corresponde a um gerente no arquivo 'gerentes.csv'.")
         sys.exit(0)
 
-    gerentes = carregar_gerentes_do_csv()
-    engine_db = get_conexao(CONFIG.conexoes["FINANCA_SQL"])
-    
-    print("\n--- Relatórios Disponíveis para Envio ---")
-    for i, path in enumerate(relatorios_gerados, 1):
-        print(f"  {i:2d}) {path.name}")
+    print("\n--- Relatórios com Gerente Correspondente Disponíveis para Envio ---")
+    for i, nome_unidade in enumerate(unidades_validas_para_envio, 1):
+        print(f"  {i:2d}) {nome_unidade}")
     print("  all) Enviar todos os relatórios")
-    print("-" * 45)
+    print("-" * 65)
 
     escolha_str = input("Escolha os relatórios para enviar (por número, ex: 1, 3), 'all' ou enter para sair: ").strip()
 
     if not escolha_str:
-        logger.info("Nenhum relatório selecionado. Encerrando.")
+        logger.info("Nenhuma seleção feita. Encerrando.")
         sys.exit(0)
-    
-    relatorios_para_enviar = []
+
+    unidades_para_enviar = []
     if escolha_str.lower() == 'all':
-        relatorios_para_enviar = relatorios_gerados
+        unidades_para_enviar = unidades_validas_para_envio
     else:
         try:
             indices_escolhidos = [int(num.strip()) - 1 for num in escolha_str.split(',')]
             for idx in indices_escolhidos:
-                if 0 <= idx < len(relatorios_gerados):
-                    relatorios_para_enviar.append(relatorios_gerados[idx])
+                if 0 <= idx < len(unidades_validas_para_envio):
+                    unidades_para_enviar.append(unidades_validas_para_envio[idx])
                 else:
                     logger.warning(f"Número {idx + 1} é inválido e será ignorado.")
         except ValueError:
             logger.error("Entrada inválida. Encerrando.")
             sys.exit(1)
 
-    if not relatorios_para_enviar:
+    if not unidades_para_enviar:
         logger.info("Nenhum relatório válido selecionado. Encerrando.")
-        sys.exit(0)
+    else:
+        for unidade in unidades_para_enviar:
+            preparar_e_enviar_email_por_unidade(unidade, df_base_total, gerentes)
 
-    logger.info("Carregando dados base para gerar resumos...")
-    PPA_FILTRO = os.getenv("PPA_FILTRO", 'PPA 2025 - 2025/DEZ')
-    ANO_FILTRO = int(os.getenv("ANO_FILTRO", 2025))
-    sql_query = "SELECT * FROM dbo.vw_Analise_Planejado_vs_Executado_v2(?, ?, ?)"
-    params = (f'{ANO_FILTRO}-01-01', f'{ANO_FILTRO}-12-31', PPA_FILTRO)
-    df_base_total = pd.read_sql(sql_query, engine_db, params=params)
-    df_base_total['nm_unidade_padronizada'] = df_base_total['UNIDADE'].str.upper().str.replace('SP - ', '', regex=False).str.strip()
-
-    for html_path in relatorios_para_enviar:
-        unidade_nome = html_path.stem.replace("relatorio_", "").replace("_", " ")
-        logger.info(f"\nPreparando envio para a unidade: {unidade_nome}")
-        
-        info_gerente = gerentes.get(unidade_nome)
-        
-        if info_gerente:
-            print(f"\nEncontrado em gerentes.csv: Unidade '{unidade_nome}', Gerente: '{info_gerente['gerente']}', Email: '{info_gerente['email']}'")
-            confirmacao = input("Confirmar criação do e-mail para este destinatário? (S/n/e para editar): ").lower().strip()
-            if confirmacao == 'n':
-                logger.info(f"Envio para {unidade_nome} pulado pelo usuário.")
-                continue
-            elif confirmacao == 'e':
-                info_gerente['gerente'] = input(f"  Novo nome do gerente (anterior: {info_gerente['gerente']}): ")
-                info_gerente['email'] = input(f"  Novo email (anterior: {info_gerente['email']}): ")
-        else:
-            logger.warning(f"Nenhum gerente encontrado para a unidade '{unidade_nome}' em gerentes.csv.")
-            if input("Deseja inserir os dados manualmente para este envio? (s/n): ").lower() == 's':
-                info_gerente = {'gerente': input("  Nome do gerente: "), 'email': input("  Email do gerente: ")}
-            else:
-                logger.info(f"Envio para {unidade_nome} abortado.")
-                continue
-
-        resumo_executivo = gerar_resumo_executivo(unidade_nome, df_base_total)
-        screenshot_path = capturar_screenshot_relatorio(html_path)
-        
-        github_pages_link = f"https://ufcsebrae.github.io/PlanNatureza/{html_path.name}"
-        
-        corpo_email = f"""
-        <html><body>
-            <p>Prezado(a) {info_gerente['gerente']},</p>
-            <p>Abaixo estão os destaques da performance orçamentária da sua unidade:</p>
-            {resumo_executivo}
-            <p>Uma prévia visual do seu painel está abaixo.</p>
-            <p><strong><a href="{github_pages_link}">Para ver o detalhamento interativo, acesse o painel completo aqui.</a></strong></p>
-            <br>
-            <img src="cid:screenshot_cid">
-            <br>
-            <p>Atenciosamente,</p>
-            <p>Equipe de Dados</p>
-        </body></html>
-        """
-        
-        enviar_via_outlook(
-            destinatario=info_gerente['email'],
-            assunto=f"Performance Orçamentária: {unidade_nome}",
-            corpo_html=corpo_email,
-            anexo_path=screenshot_path
-        )
-        
-        if screenshot_path and screenshot_path.exists():
-            os.remove(screenshot_path)
-            logger.info(f"Screenshot temporário '{screenshot_path.name}' removido.")
+    logger.info("\n--- FIM DO PROCESSO DE ENVIO DE E-MAILS ---")
 
 if __name__ == "__main__":
     main()
