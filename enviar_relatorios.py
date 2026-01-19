@@ -14,12 +14,11 @@ import time
 # --- Módulo de Dados Centralizado ---
 try:
     from processamento_dados_base import obter_dados_processados
+    from config import CONFIG
 except ImportError:
     logging.basicConfig(level=logging.INFO)
-    logging.critical("Erro: O arquivo 'processamento_dados_base.py' não foi encontrado.")
+    logging.critical("Erro: Arquivos essenciais como 'processamento_dados_base.py' ou 'config.py' não foram encontrados.")
     sys.exit(1)
-
-from config import CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,6 @@ def carregar_gerentes_do_csv() -> dict:
         logger.error(f"Arquivo de gerentes não encontrado: {caminho_csv}")
         return {}
     try:
-        # CORREÇÃO: Usando a vírgula como separador, que é o padrão para este arquivo.
         df_gerentes = pd.read_csv(caminho_csv, sep=',', encoding='utf-8-sig')
         gerentes_dict = {
             str(row['unidade']).upper().strip(): {'email': str(row['email']), 'gerente': str(row['gerente'])}
@@ -111,6 +109,12 @@ def preparar_e_enviar_email_por_unidade(unidade_nome: str, df_base_total: pd.Dat
         logger.warning(f"Relatório '{nome_arquivo}' não encontrado para a unidade '{unidade_nome}'. Pulando.")
         return
 
+    # *** CORREÇÃO: Constrói a URL pública do GitHub Pages ***
+    # Adicione a variável GITHUB_PAGES_URL ao seu arquivo .env
+    GITHUB_PAGES_BASE_URL = os.getenv("GITHUB_PAGES_URL", "https://<seu-usuario>.github.io/<seu-repositorio>/")
+    dashboard_url = f"{GITHUB_PAGES_BASE_URL}{html_path.name}"
+
+
     df_unidade = df_base_total[df_base_total['UNIDADE_FINAL'] == unidade_nome].copy()
     if df_unidade.empty:
         logger.warning(f"Sem dados para a unidade '{unidade_nome}' após o filtro. Pulando.")
@@ -119,7 +123,7 @@ def preparar_e_enviar_email_por_unidade(unidade_nome: str, df_base_total: pd.Dat
     unidade_planejado = df_unidade['Valor_Planejado'].sum()
     unidade_executado = df_unidade['Valor_Executado'].sum()
     unidade_saldo = unidade_planejado - unidade_executado
-    gap_global_perc = (unidade_saldo / unidade_planejado * 100) if unidade_planejado else 0
+    gap_global_perc = (unidade_saldo / unidade_planejado * 100) if unidade_planejado > 0 else 0
 
     df_serv_esp = df_unidade[df_unidade['NATUREZA_FINAL'] == 'Serviços Especializados']
     saldo_serv_esp = df_serv_esp['Valor_Planejado'].sum() - df_serv_esp['Valor_Executado'].sum()
@@ -129,34 +133,54 @@ def preparar_e_enviar_email_por_unidade(unidade_nome: str, df_base_total: pd.Dat
 
     screenshot_path = capturar_screenshot_relatorio(html_path)
 
-    assunto = f"[AÇÃO] Monitoramento Estratégico: Execução Orçamentária 2025 - Unidade {unidade_nome}"
+    assunto = f"Análise Orçamentária: {gap_global_perc:.1f}% de Saldo Ocioso na Unidade {unidade_nome}"
     
     corpo_email = f"""
     <html>
-    <body style="font-family: 'Roboto', sans-serif; color: #1F2937;">
+    <body style="font-family: 'Roboto', sans-serif; color: #1F2937; line-height: 1.6;">
         <p>Prezado(a) {info_gerente['gerente']},</p>
-        <p>Compartilhamos o novo <strong>Dashboard de Execução Orçamentária 2025</strong>. Este modelo foi desenhado para oferecer uma visão clara da eficiência financeira de cada unidade, permitindo identificar gargalos antes que impactem o fechamento do exercício.</p>
-        <p>O arquivo HTML em anexo é interativo e apresenta três frentes críticas para sua gestão:</p>
-        <ol>
-            <li><strong>Aderência ao Planejado:</strong> Comparativo direto entre o que foi orçado e o que foi efetivamente executado por mês.</li>
-            <li><strong>Matriz de Eficiência:</strong> Identificação visual de projetos com alto orçamento e baixa tração (Quadrante de Risco).</li>
-            <li><strong>Composição de Custos:</strong> Detalhamento por Natureza (Serviços, Viagens, Aluguéis) para facilitar realocações.</li>
-        </ol>
-        <div style="background-color: #F3F4F6; border-left: 4px solid #4F46E5; padding: 15px; margin: 20px 0;">
-            <h4 style="margin: 0; font-weight: bold;">Dados Estratégicos Consolidados para a Unidade {unidade_nome}:</h4>
-            <ul style="margin-top: 10px; padding-left: 20px;">
-                <li><strong>Gap Global:</strong> Atualmente, observamos um desvio de <strong>{gap_global_perc:.1f}%</strong> entre o planejado e o executado.</li>
-                <li><strong>Ponto de Atenção:</strong> A natureza de "Serviços Especializados" representa <strong>{perc_ponto_atencao:.1f}%</strong> do orçamento não executado, exigindo revisão dos fluxos de contratação.</li>
-                <li><strong>Eficiência de Projetos:</strong> Solicitamos foco nos projetos situados no quadrante inferior direito da matriz (Alto Orçamento / Baixa Execução).</li>
+        <p>Este e-mail apresenta um resumo da performance orçamentária da sua unidade. O objetivo é identificar <strong>saldos ociosos</strong> que podem ser remanejados ou que representam um <strong>risco de perda de dotação</strong> para o próximo ciclo orçamentário.</p>
+        
+        <div style="background-color: #F3F4F6; border-left: 4px solid #4F46E5; padding: 15px; margin: 20px 0; border-radius: 4px;">
+            <h4 style="margin: 0 0 10px 0; font-weight: bold; font-size: 1.1em;">Análise Rápida: Unidade {unidade_nome}</h4>
+            <ul style="padding-left: 20px; margin: 0;">
+                <li><strong>Gap de Execução (Ocioso):</strong> <strong>{gap_global_perc:.1f}%</strong> do orçamento previsto para a unidade ainda não foi executado.</li>
+                <li><strong>Ponto Crítico de Atenção:</strong> <strong>{perc_ponto_atencao:.1f}%</strong> deste saldo está concentrado na natureza de <strong>"Serviços Especializados"</strong>, indicando um possível gargalo em processos de contratação.</li>
             </ul>
         </div>
-        <p><strong>Ação Esperada:</strong> Solicitamos que cada gestor analise o comportamento de sua respectiva Unidade e valide as previsões para o próximo trimestre. O saldo disponível reportado no dashboard deve ser avaliado para possíveis remanejamentos internos.</p>
-        <p><em>Uma prévia do seu dashboard está abaixo. Clique na imagem para acessar o relatório interativo completo.</em></p>
-        <a href="{html_path.resolve().as_uri()}">
-            <img src="cid:screenshot_placeholder" alt="Prévia do Dashboard" style="width:100%; max-width:800px; border:1px solid #ccc;">
+
+        <h4>Próximos Passos Recomendados:</h4>
+        <ol style="padding-left: 20px;">
+            <li><strong>Analisar Detalhes:</strong> Use o dashboard interativo para aprofundar a análise dos projetos e naturezas com maior ociosidade.</li>
+            <li><strong>Validar Projeções (Forecast):</strong> Verifique se as projeções de gastos para o restante do ano estão realistas.</li>
+            <li><strong>Propor Ações Corretivas:</strong> Identifique saldos que não serão utilizados e avalie o remanejamento para outras iniciativas.</li>
+        </ol>
+
+        <p>Para uma análise completa, acesse o relatório detalhado clicando no botão abaixo:</p>
+        
+        <!-- BOTÃO DE CALL TO ACTION -->
+        <table width="100%" cellspacing="0" cellpadding="0" style="margin: 20px 0;">
+          <tr>
+            <td>
+              <table cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="border-radius: 5px;" bgcolor="#4F46E5">
+                    <a href="{dashboard_url}" target="_blank" style="padding: 12px 25px; border: 1px solid #4F46E5; border-radius: 5px; font-family: 'Roboto', sans-serif; font-size: 16px; color: #ffffff; text-decoration: none; display: inline-block; font-weight: bold;">
+                      Acessar Dashboard Interativo
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <p style="margin-top: 20px; font-size: 0.9em; color: #555;"><i>(Opcional) Clique na prévia abaixo para abrir o arquivo.</i></p>
+        <a href="{dashboard_url}">
+            <img src="cid:screenshot_placeholder" alt="Prévia do Dashboard" style="width:100%; max-width:800px; border:1px solid #ccc; border-radius: 4px;">
         </a>
-        <p>Atenciosamente,</p>
-        <p><strong>Equipe de Planejamento e Controladoria</strong></p>
+        <p>Estamos à disposição para discutir os dados e auxiliar no seu plano de ação.</p>
+        <p>Atenciosamente,<br><strong>Equipe de Planejamento e Controladoria</strong></p>
     </body>
     </html>
     """
@@ -186,7 +210,6 @@ def main():
         logger.error("O arquivo de gerentes não pôde ser carregado ou está vazio. Encerrando.")
         sys.exit(1)
 
-    # MELHORIA: Lista apenas relatórios para os quais existe um gerente correspondente
     relatorios_dir = CONFIG.paths.docs_dir
     unidades_com_relatorio = [f.stem.replace('dashboard_', '').replace('_', ' ') for f in relatorios_dir.glob("dashboard_*.html")]
     
