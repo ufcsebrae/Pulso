@@ -7,213 +7,81 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #F3F4F6;
-            color: #1F2937;
-        }
-        .chart-container {
-            position: relative;
-            width: 100%;
-            height: 350px;
-            margin: auto;
-        }
-        .card {
-            background-color: white;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            padding: 1.5rem;
-            height: 100%;
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
+        body { font-family: 'Roboto', sans-serif; background-color: #F3F4F6; color: #1F2937; }
+        .chart-container { position: relative; width: 100%; height: 350px; margin: auto; }
+        .card { background-color: white; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); padding: 1.5rem; height: 100%; }
         .text-primary { color: #4F46E5; }
-        .text-secondary { color: #10B981; }
-        .text-accent { color: #F59E0B; }
     </style>
 </head>
 <body class="antialiased">
-    <nav class="bg-white shadow-sm sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <span class="text-2xl font-bold text-primary tracking-tight">Monitoramento Orçamentário 2025</span>
-                </div>
-            </div>
-        </div>
-    </nav>
-
+    <nav class="bg-white shadow-sm sticky top-0 z-50"><div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><div class="flex justify-between h-16"><div class="flex items-center"><span class="text-2xl font-bold text-primary tracking-tight">Monitoramento Orçamentário 2025</span></div></div></div></nav>
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="mb-8 p-6 bg-white rounded-lg shadow-md">
-            <h1 class="text-3xl font-bold text-gray-900 mb-4">Visão Geral da Execução</h1>
-            <p class="text-lg text-gray-600 max-w-4xl mb-6">
-                Este painel consolida os dados financeiros de 2025, analisando a relação entre o <strong>Valor Planejado</strong> e o <strong>Valor Executado</strong>. Para uma análise mais clara, os projetos foram divididos em duas categorias:
-            </p>
+            <h1 class="text-3xl font-bold text-gray-900 mb-4">Visão Geral da Execução: CAMPINAS</h1>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
-                    <h3 class="font-bold text-blue-800">Projetos Exclusivos</h3>
-                    <p class="text-sm text-blue-700 mt-1">
-                        São projetos cujo orçamento e execução pertencem a uma <strong>única unidade</strong> de negócio. A performance aqui reflete diretamente o desempenho daquela unidade específica.
-                    </p>
-                </div>
-                <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
-                    <h3 class="font-bold text-green-800">Projetos Compartilhados</h3>
-                    <p class="text-sm text-green-700 mt-1">
-                        São projetos que envolvem <strong>duas ou mais unidades</strong>, com orçamento e execução distribuídos entre elas. A análise desses projetos requer uma visão colaborativa.
-                    </p>
-                </div>
+                <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500"><h3 class="font-bold text-blue-800">Projetos Exclusivos</h3><p class="text-sm text-blue-700 mt-1">Projetos cujo orçamento pertence a uma <strong>única unidade</strong>.</p></div>
+                <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-500"><h3 class="font-bold text-green-800">Projetos Compartilhados</h3><p class="text-sm text-green-700 mt-1">Projetos que envolvem <strong>duas ou mais unidades</strong>.</p></div>
             </div>
         </div>
-
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div class="card border-l-4 border-indigo-500">
-                <h3 class="text-sm font-medium text-gray-500 uppercase">Execução Total</h3>
-                <p class="text-3xl font-bold text-gray-900 mt-2">97.6%</p>
-                <p class="mt-1 text-sm text-gray-500">R$ 10.52 M de R$ 10.78 M</p>
-            </div>
-            <div class="card border-l-4 border-blue-500">
-                <h3 class="text-sm font-medium text-gray-500 uppercase">Execução Proj. Exclusivos</h3>
-                <p class="text-3xl font-bold text-gray-900 mt-2">95.3%</p>
-                <p class="mt-1 text-sm text-gray-500">R$ 1.15 M de R$ 1.21 M</p>
-            </div>
-            <div class="card border-l-4 border-green-500">
-                <h3 class="text-sm font-medium text-gray-500 uppercase">Execução Proj. Compartilhados</h3>
-                <p class="text-3xl font-bold text-gray-900 mt-2">97.9%</p>
-                <p class="mt-1 text-sm text-gray-500">R$ 9.37 M de R$ 9.57 M</p>
-            </div>
+            <div class="card border-l-4 border-indigo-500"><h3 class="text-sm font-medium text-gray-500 uppercase">Execução Total</h3><p class="text-3xl font-bold text-gray-900 mt-2">97.6%</p><p class="mt-1 text-sm text-gray-500">R$ 10.52 M de R$ 10.78 M</p></div>
+            <div class="card border-l-4 border-blue-500"><h3 class="text-sm font-medium text-gray-500 uppercase">Execução Proj. Exclusivos</h3><p class="text-3xl font-bold text-gray-900 mt-2">95.3%</p><p class="mt-1 text-sm text-gray-500">R$ 1.15 M de R$ 1.21 M</p></div>
+            <div class="card border-l-4 border-green-500"><h3 class="text-sm font-medium text-gray-500 uppercase">Execução Proj. Compartilhados</h3><p class="text-3xl font-bold text-gray-900 mt-2">97.9%</p><p class="mt-1 text-sm text-gray-500">R$ 9.37 M de R$ 9.57 M</p></div>
         </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-            <div class="lg:col-span-3">
-                <div class="card">
-                    <h2 class="text-xl font-bold text-gray-800">Evolução Mensal: Executado</h2>
-                    <p class="text-sm text-gray-500 mt-1 mb-6">Comparativo da execução por tipo de projeto ao longo dos meses.</p>
-                    <div class="chart-container"><canvas id="trendChart"></canvas></div>
-                </div>
-            </div>
-        </div>
-
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10"><div class="lg:col-span-3"><div class="card"><h2 class="text-xl font-bold text-gray-800">Evolução Mensal: Executado</h2><p class="text-sm text-gray-500 mt-1 mb-6">Comparativo da execução por tipo de projeto.</p><div class="chart-container"><canvas id="trendChart"></canvas></div></div></div></div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+            <div class="card"><h2 class="text-xl font-bold text-gray-800 mb-2">Estrutura de Gastos (Proj. Exclusivos)</h2><p class="text-sm text-gray-500 mb-4">Proporção do valor executado por natureza.</p><div id="treemapExclusivo" class="chart-container"></div></div>
+            <div class="card"><h2 class="text-xl font-bold text-gray-800 mb-2">Estrutura de Gastos (Proj. Compartilhados)</h2><p class="text-sm text-gray-500 mb-4">Proporção do valor executado por natureza.</p><div id="treemapCompartilhado" class="chart-container"></div></div>
+        </div>
+        <div class="grid grid-cols-1 gap-8 mb-10">
             <div class="card">
-                <h2 class="text-xl font-bold text-gray-800 mb-2">Composição por Natureza (Top 10)</h2>
-                <p class="text-sm text-gray-500 mb-4">Como o orçamento total planejado está alocado entre as principais naturezas de despesa.</p>
-                <div class="chart-container"><canvas id="natureChart"></canvas></div>
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Orçamento Ocioso por Projeto (Top 7)</h2>
+                <p class="text-sm text-gray-500 mb-4">Maiores saldos não executados (Cálculo: Valor Planejado - Valor Executado), detalhados por tipo de projeto.</p>
+                <div class="chart-container" style="height: 400px;"><canvas id="idleBudgetChart"></canvas></div>
             </div>
-            <div class="card">
-                <h2 class="text-xl font-bold text-gray-800 mb-2">Matriz de Eficiência de Projetos</h2>
-                <p class="text-sm text-gray-500 mb-4">
-                    Relação entre Tamanho do Orçamento (Eixo X) e % de Execução (Eixo Y).
-                    <br><span class="text-xs text-blue-500">■ Exclusivo</span> | <span class="text-xs text-green-500">■ Compartilhado</span>
-                </p>
-                <div class="chart-container"><canvas id="scatterChart"></canvas></div>
-            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+            <div class="card"><h2 class="text-xl font-bold text-gray-800 mb-2">Execução Sem Planejamento (Exclusivos)</h2><p class="text-sm text-gray-500 mb-4">Gastos em naturezas onde o orçamento era zero.</p><div class="chart-container"><canvas id="unplannedExclusivoChart"></canvas></div></div>
+            <div class="card"><h2 class="text-xl font-bold text-gray-800 mb-2">Execução Sem Planejamento (Compartilhados)</h2><p class="text-sm text-gray-500 mb-4">Gastos em naturezas onde o orçamento era zero.</p><div class="chart-container"><canvas id="unplannedCompartilhadoChart"></canvas></div></div>
         </div>
     </main>
+    
+    <script id="data-island" type="application/json">{"trend": {"labels": ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"], "executed_total": [671210.8, 719361.4999999999, 736168.12, 838205.6699999999, 848867.4600000001, 900576.03, 703644.5800000001, 899570.93, 916980.39, 932666.74, 1461938.8100000003, 893044.63], "executed_exclusivo": [33160.91, 97504.73999999999, 66284.23, 139064.43, 177602.75, 101027.26, 63482.479999999996, 155697.38999999998, 81081.41, 97235.68, 69393.56, 70926.15], "executed_compartilhado": [638049.89, 621856.7599999999, 669883.89, 699141.2399999999, 671264.7100000001, 799548.77, 640162.1000000001, 743873.54, 835898.98, 835431.06, 1392545.2500000002, 822118.48]}, "treemap_exclusivo": {"labels": ["Alugu\u00e9is E Encargos", "Demais Custos E Despesas Gerais", "Despesas Com Viagens", "Despesas Financeiras", "Encargos Sociais S/Servi\u00e7os De Terceiros", "MATERIAIS DE CONSUMO", "Materiais De Consumo", "SERVI\u00c7OS DE COMUNICA\u00c7\u00c3O EM GERAL", "SERVI\u00c7OS GR\u00c1FICOS E DE REPRODU\u00c7\u00c3O", "Servi\u00e7os Contratados", "Servi\u00e7os Especializados"], "parents": ["", "", "", "", "", "", "", "", "", "", ""], "values": [6159.6, 70165.58, 96179.05, 27.6, 102.0, 100.0, 10612.85, 2713.05, 2171.5, 315199.76, 649030.0], "projetos": ["<br>- SP - Atendimento Presencial ER Campinas", "<br>- Suporte a Neg\u00f3cios - ER Campinas", "<br>- SP - Atendimento Presencial ER Campinas<br>- Suporte a Neg\u00f3cios - ER Campinas", "<br>- Suporte a Neg\u00f3cios - ER Campinas", "<br>- Suporte a Neg\u00f3cios - ER Campinas", "<br>- SP - Atendimento Presencial ER Campinas", "<br>- Suporte a Neg\u00f3cios - ER Campinas", "<br>- Suporte a Neg\u00f3cios - ER Campinas", "<br>- Suporte a Neg\u00f3cios - ER Campinas", "<br>- SP - Atendimento Presencial ER Campinas<br>- Suporte a Neg\u00f3cios - ER Campinas", "<br>- SP - Atendimento Presencial ER Campinas"]}, "treemap_compartilhado": {"labels": ["Alugu\u00e9is E Encargos", "Benef\u00edcios Sociais", "DOA\u00c7\u00d5ES E SUBVEN\u00c7\u00d5ES", "Despesas Com Viagens", "Despesas Tribut\u00e1rias", "Encargos Sociais", "MATERIAIS DE CONSUMO", "Materiais De Consumo", "Pessoal", "SERVI\u00c7OS GR\u00c1FICOS E DE REPRODU\u00c7\u00c3O", "Servi\u00e7os Contratados", "Servi\u00e7os De Comunica\u00e7\u00e3o Em Geral", "Servi\u00e7os Especializados", "Servi\u00e7os Gr\u00e1ficos E De Reprodu\u00e7\u00e3o"], "parents": ["", "", "", "", "", "", "", "", "", "", "", "", "", ""], "values": [95986.58, 1545030.31, 207146.61000000002, 17043.78, 57333.25, 375008.35000000003, 315.28, 26875.309999999998, 5121098.29, 249.65, 963456.82, 7999.95, 946559.26, 5671.23], "projetos": ["<br>- Custeio Administrativo - ERs e Sede", "<br>- Suporte a Neg\u00f3cios - Remunera\u00e7\u00e3o de Recursos Humanos Relacionado a Neg\u00f3cios", "<br>- Projeto Apex-Brasil - Peiex", "<br>- Conex\u00f5es corporativas Sebrae-SP - Serasa<br>- Custeio Administrativo - ERs e Sede<br>- Projeto Apex-Brasil - Peiex", "<br>- Gest\u00e3o Operacional - Tributos", "<br>- Suporte a Neg\u00f3cios - Remunera\u00e7\u00e3o de Recursos Humanos Relacionado a Neg\u00f3cios", "<br>- Projeto Apex-Brasil - Peiex", "<br>- Custeio Administrativo - ERs e Sede", "<br>- Suporte a Neg\u00f3cios - Remunera\u00e7\u00e3o de Recursos Humanos Relacionado a Neg\u00f3cios", "<br>- Projeto Apex-Brasil - Peiex", "<br>- Aprendizes e Estagi\u00e1rios<br>- Contrato de Tempor\u00e1rios<br>- Custeio Administrativo - ERs e Sede", "<br>- Custeio Administrativo - ERs e Sede", "<br>- Aprendizes e Estagi\u00e1rios<br>- Conex\u00f5es corporativas Sebrae-SP - Serasa<br>- Custeio Administrativo - ERs e Sede", "<br>- Custeio Administrativo - ERs e Sede"]}, "idle_budget": {"labels": ["SP - Atendimento Presencial ER Campinas", "Suporte a Neg\u00f3cios - Remunera\u00e7\u00e3o de Recursos Humanos Relacionado a Neg\u00f3cios", "Custeio Administrativo - ERs e Sede", "Projeto Apex-Brasil - PEIEX", "Conex\u00f5es corporativas Sebrae-SP - Serasa", "Contrato de Tempor\u00e1rios", "Suporte a Neg\u00f3cios - ER Campinas"], "values_exclusivo": [793092.28, 0.0, 0.0, 0.0, 0.0, 0.0, 77377.85], "values_compartilhado": [0.0, 604715.64, 424588.25, 302461.0, 289026.0, 142161.38, 0.0], "detalhes_exclusivo": [["- Credenciamento (R$ 302.7 k)", "- Miss\u00e3o Nacional (R$ 163.7 k)", "- Empretec (R$ 161.3 k)"], [], [], [], [], [], ["- Escrit\u00f3rio Regional (R$ 75.6 k)", "- Sebrae Aqui (R$ 1.8 k)"]], "detalhes_compartilhado": [[], ["- Rem. de RH - ER Campinas (R$ 604.7 k)"], ["- ER CAMPINAS (R$ 424.6 k)"], ["- Atendimento PEIEX - ER Campinas (R$ 302.5 k)"], ["- Credenciamento - ER Campinas (R$ 289.0 k)"], ["- ER Campinas (R$ 142.2 k)"], []]}, "unplanned_exclusivo": {"labels": ["Servi\u00e7os Contratados", "Despesas Com Viagens", "Servi\u00e7os Especializados", "Demais Custos E Despesas Gerais", "Alugu\u00e9is E Encargos", "SERVI\u00c7OS DE COMUNICA\u00c7\u00c3O EM GERAL", "SERVI\u00c7OS GR\u00c1FICOS E DE REPRODU\u00c7\u00c3O"], "values": [260635.93, 46534.21, 16800.0, 7018.52, 6159.6, 2713.05, 2171.5], "projetos": [["- SP - Atendimento Presencial ER Campinas (R$ 260.6 k)"], ["- SP - Atendimento Presencial ER Campinas (R$ 42.9 k)", "- Suporte a Neg\u00f3cios - ER Campinas (R$ 3.6 k)"], ["- SP - Atendimento Presencial ER Campinas (R$ 16.8 k)"], ["- Suporte a Neg\u00f3cios - ER Campinas (R$ 7.0 k)"], ["- SP - Atendimento Presencial ER Campinas (R$ 6.2 k)"], ["- Suporte a Neg\u00f3cios - ER Campinas (R$ 2.7 k)"], ["- Suporte a Neg\u00f3cios - ER Campinas (R$ 2.2 k)"]]}, "unplanned_compartilhado": {"labels": ["DOA\u00c7\u00d5ES E SUBVEN\u00c7\u00d5ES", "Servi\u00e7os Especializados", "Despesas Com Viagens", "Servi\u00e7os Contratados", "MATERIAIS DE CONSUMO", "SERVI\u00c7OS GR\u00c1FICOS E DE REPRODU\u00c7\u00c3O"], "values": [207146.61000000002, 18195.34, 17043.78, 9308.76, 315.28, 249.65], "projetos": [["- Projeto Apex-Brasil - Peiex (R$ 207.1 k)"], ["- Conex\u00f5es corporativas Sebrae-SP - Serasa (R$ 15.4 k)", "- Aprendizes e Estagi\u00e1rios (R$ 2.8 k)"], ["- Custeio Administrativo - ERs e Sede (R$ 15.6 k)", "- Projeto Apex-Brasil - Peiex (R$ 738.44)", "- Conex\u00f5es corporativas Sebrae-SP - Serasa (R$ 680.00)"], ["- Contrato de Tempor\u00e1rios (R$ 8.8 k)", "- Projeto Apex-Brasil - Peiex (R$ 483.63)"], ["- Projeto Apex-Brasil - Peiex (R$ 315.28)"], ["- Projeto Apex-Brasil - Peiex (R$ 249.65)"]]}}</script>
 
     <script>
-        const chartData = {"trend": {"labels": ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"], "executed_total": [671210.8, 719361.4999999999, 736168.12, 838205.6699999999, 848867.4600000001, 900576.03, 703644.5800000001, 899570.93, 916980.39, 932666.74, 1461938.8100000003, 893044.63], "executed_exclusivo": [33160.91, 97504.73999999999, 66284.23, 139064.43, 177602.75, 101027.26, 63482.479999999996, 155697.38999999998, 81081.41, 97235.68, 69393.56, 70926.15], "executed_compartilhado": [638049.89, 621856.7599999999, 669883.89, 699141.2399999999, 671264.7100000001, 799548.77, 640162.1000000001, 743873.54, 835898.98, 835431.06, 1392545.2500000002, 822118.48]}, "nature": {"labels": ["Pessoal", "Servi\u00e7os Especializados", "Benef\u00edcios Sociais", "Servi\u00e7os Contratados", "Encargos Sociais", "Alugu\u00e9is E Encargos", "Doa\u00e7\u00f5es E Subven\u00e7\u00f5es", "Despesas Com Viagens", "Despesas Tribut\u00e1rias", "Materiais De Consumo"], "values": [5141555.0, 1978636.0, 1548728.0, 816486.0, 377434.0, 326693.0, 212901.0, 140745.0, 95160.0, 55648.0]}, "scatter": [{"x": 52206.0, "y": 86.25004788721601, "label": "Aprendizes e Estagi\u00e1rios", "type": "Compartilhado"}, {"x": 10.0, "y": 0.0, "label": "Clube de Neg\u00f3cios", "type": "Compartilhado"}, {"x": 985282.0, "y": 95.26617760194543, "label": "Conex\u00f5es corporativas Sebrae-SP - Serasa", "type": "Compartilhado"}, {"x": 417451.0, "y": 94.97252372134693, "label": "Contrato de Tempor\u00e1rios", "type": "Compartilhado"}, {"x": 615105.0, "y": 85.58801017712423, "label": "Custeio Administrativo - ERs e Sede", "type": "Compartilhado"}, {"x": 57500.0, "y": 99.71, "label": "Gest\u00e3o Operacional - Tributos", "type": "Compartilhado"}, {"x": 214440.0, "y": 0.0, "label": "Projeto Apex-Brasil - PEIEX", "type": "Compartilhado"}, {"x": 1059707.0, "y": 94.68534604376492, "label": "SP - Atendimento Presencial ER Campinas", "type": "Exclusivo"}, {"x": 149700.0, "y": 99.5816633266533, "label": "Suporte a Neg\u00f3cios - ER Campinas", "type": "Exclusivo"}, {"x": 7227621.0, "y": 99.57522302290063, "label": "Suporte a Neg\u00f3cios - Remunera\u00e7\u00e3o de Recursos Humanos Relacionado a Neg\u00f3cios", "type": "Compartilhado"}]};
+        const chartData = JSON.parse(document.getElementById('data-island').textContent);
+        
+        function createTreemap(elementId, data, colorscale) {
+            if (data && data.labels && data.labels.length > 0) {
+                const trace = { type: 'treemap', labels: data.labels, parents: data.parents, values: data.values, customdata: data.projetos, hovertemplate: '<b>%{label}</b><br>Valor Executado: %{value:,.2f}<br><br><b>Principais Projetos:</b><br>%{customdata}<extra></extra>', textinfo: 'label+value+percent root', marker: { colorscale: colorscale, reversescale: true } };
+                Plotly.newPlot(elementId, [trace], { margin: {t: 10, l: 10, r: 10, b: 10}, font: { family: 'Roboto' } }, {responsive: true, displayModeBar: false});
+            } else { document.getElementById(elementId).innerHTML = `<div class="flex items-center justify-center h-full text-center text-gray-500">Sem dados para exibir.</div>`; }
+        }
+        createTreemap('treemapExclusivo', chartData.treemap_exclusivo, 'Blues');
+        createTreemap('treemapCompartilhado', chartData.treemap_compartilhado, 'Greens');
 
-        const formatBRL = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        new Chart(document.getElementById('trendChart').getContext('2d'), {
+            type: 'line', data: { labels: chartData.trend.labels, datasets: [ { label: 'Executado (Total)', data: chartData.trend.executed_total, borderColor: '#4338CA', fill: false, tension: 0.3 }, { label: 'Exclusivos', data: chartData.trend.executed_exclusivo, borderColor: '#3B82F6', fill: false, tension: 0.3, borderDash: [5, 5] }, { label: 'Compartilhados', data: chartData.trend.executed_compartilhado, borderColor: '#10B981', fill: false, tension: 0.3, borderDash: [5, 5] } ] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : (v / 1000).toFixed(0) + 'k'; } } }, x: { grid: { display: false } } } }
+        });
+        
+        function createBarChart(canvasId, chartData, title, color) {
+             if (chartData && chartData.labels && chartData.labels.length > 0) {
+                new Chart(document.getElementById(canvasId).getContext('2d'), { type: 'bar', data: { labels: chartData.labels, datasets: [{ label: title, data: chartData.values, backgroundColor: color, meta: chartData.projetos }] },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { footer: function(tooltipItems) { const item = tooltipItems[0]; const detalhes = item.dataset.meta[item.dataIndex] || []; return detalhes.length > 0 ? ['Principais Projetos:'].concat(detalhes) : ''; } } } }, scales: { x: { ticks: { callback: function(v) { return v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : (v / 1000).toFixed(0) + 'k'; } } } } }
+                });
+            } else { document.getElementById(canvasId).innerHTML = `<div class="flex items-center justify-center h-full text-center text-gray-500">Sem dados para exibir.</div>`; }
+        }
 
-        const ctxTrend = document.getElementById('trendChart').getContext('2d');
-        new Chart(ctxTrend, {
-            type: 'line',
-            data: {
-                labels: chartData.trend.labels,
-                datasets: [
-                    {
-                        label: 'Executado (Total)', data: chartData.trend.executed_total,
-                        borderColor: '#4338CA', backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                        fill: false, tension: 0.3, pointRadius: 3
-                    },
-                    {
-                        label: 'Executado (Exclusivos)', data: chartData.trend.executed_exclusivo,
-                        borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        fill: false, tension: 0.3, pointRadius: 3, borderDash: [5, 5]
-                    },
-                    {
-                        label: 'Executado (Compartilhados)', data: chartData.trend.executed_compartilhado,
-                        borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        fill: false, tension: 0.3, pointRadius: 3, borderDash: [5, 5]
-                    },
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : (v / 1000).toFixed(0) + 'k'; } } }, x: { grid: { display: false } } }
-            }
+        new Chart(document.getElementById('idleBudgetChart').getContext('2d'), {
+            type: 'bar', data: { labels: chartData.idle_budget.labels, datasets: [ { label: 'Exclusivos', data: chartData.idle_budget.values_exclusivo, backgroundColor: '#3B82F6', meta: chartData.idle_budget.detalhes_exclusivo }, { label: 'Compartilhados', data: chartData.idle_budget.values_compartilhado, backgroundColor: '#10B981', meta: chartData.idle_budget.detalhes_compartilhado } ] },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { footer: function(tooltipItems) { const item = tooltipItems[0]; const acoes = item.dataset.meta[item.dataIndex] || []; return acoes.length > 0 ? ['Principais Ações:'].concat(acoes) : ''; } } } }, scales: { x: { stacked: true, ticks: { callback: function(v) { return v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : (v / 1000).toFixed(0) + 'k'; } } }, y: { stacked: true } } }
         });
 
-        const ctxNature = document.getElementById('natureChart').getContext('2d');
-        new Chart(ctxNature, {
-            type: 'doughnut',
-            data: {
-                labels: chartData.nature.labels,
-                datasets: [{
-                    data: chartData.nature.values,
-                    backgroundColor: ['#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#10b981', '#34d399', '#6ee7b7', '#f59e0b', '#fbbf24', '#fcd34d'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false, cutout: '65%',
-                plugins: { legend: { position: 'right', labels: { boxWidth: 12, usePointStyle: true } } }
-            }
-        });
-
-        const ctxScatter = document.getElementById('scatterChart').getContext('2d');
-        new Chart(ctxScatter, {
-            type: 'scatter',
-            data: {
-                datasets: [
-                    {
-                        label: 'Projetos Exclusivos',
-                        data: chartData.scatter.filter(p => p.type === 'Exclusivo'),
-                        backgroundColor: '#3B82F6'
-                    },
-                    {
-                        label: 'Projetos Compartilhados',
-                        data: chartData.scatter.filter(p => p.type === 'Compartilhado'),
-                        backgroundColor: '#10B981'
-                    }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: {
-                    x: { 
-                        type: 'logarithmic', 
-                        title: { display: true, text: 'Orçamento Planejado (R$)' }, 
-                        ticks: { 
-                            callback: function(v) {
-                                if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
-                                if (v >= 1000) return (v / 1000).toFixed(0) + 'k';
-                                return v;
-                            }
-                        } 
-                    },
-                    y: { title: { display: true, text: '% Execução' }, min: 0, max: 110 }
-                },
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                var raw = context.raw;
-                                return [
-                                    'Projeto: ' + raw.label,
-                                    'Planejado: ' + formatBRL(raw.x),
-                                    'Execução: ' + raw.y.toFixed(1) + '%'
-                                ];
-                            }
-                        }
-                    }
-                }
-            }
-        });
+        createBarChart('unplannedExclusivoChart', chartData.unplanned_exclusivo, 'Executado Sem Orçamento (Exclusivos)', '#EF4444');
+        createBarChart('unplannedCompartilhadoChart', chartData.unplanned_compartilhado, 'Executado Sem Orçamento (Compartilhados)', '#D97706');
     </script>
 </body>
 </html>
