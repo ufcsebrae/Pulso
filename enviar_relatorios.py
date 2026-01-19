@@ -109,11 +109,8 @@ def preparar_e_enviar_email_por_unidade(unidade_nome: str, df_base_total: pd.Dat
         logger.warning(f"Relatório '{nome_arquivo}' não encontrado para a unidade '{unidade_nome}'. Pulando.")
         return
 
-    # *** CORREÇÃO: Constrói a URL pública do GitHub Pages ***
-    # Adicione a variável GITHUB_PAGES_URL ao seu arquivo .env
     GITHUB_PAGES_BASE_URL = os.getenv("GITHUB_PAGES_URL", "https://<seu-usuario>.github.io/<seu-repositorio>/")
     dashboard_url = f"{GITHUB_PAGES_BASE_URL}{html_path.name}"
-
 
     df_unidade = df_base_total[df_base_total['UNIDADE_FINAL'] == unidade_nome].copy()
     if df_unidade.empty:
@@ -129,31 +126,31 @@ def preparar_e_enviar_email_por_unidade(unidade_nome: str, df_base_total: pd.Dat
     saldo_serv_esp = df_serv_esp['Valor_Planejado'].sum() - df_serv_esp['Valor_Executado'].sum()
     perc_ponto_atencao = (saldo_serv_esp / unidade_saldo * 100) if unidade_saldo > 0 else 0
 
-    logger.info(f"[{unidade_nome}] Gap Global: {gap_global_perc:.1f}%. Ponto de Atenção (Serv. Esp.): {perc_ponto_atencao:.1f}%.")
+    logger.info(f"[{unidade_nome}] Saldo Final Não Executado: {gap_global_perc:.1f}%. Foco em Serviços Especializados: {perc_ponto_atencao:.1f}%.")
 
     screenshot_path = capturar_screenshot_relatorio(html_path)
 
-    assunto = f"Análise Orçamentária: {gap_global_perc:.1f}% de Saldo Ocioso na Unidade {unidade_nome}"
+    assunto = f"Fechamento Orçamentário 2025: Análise de Performance da Unidade {unidade_nome}"
     
     corpo_email = f"""
     <html>
     <body style="font-family: 'Roboto', sans-serif; color: #1F2937; line-height: 1.6;">
         <p>Prezado(a) {info_gerente['gerente']},</p>
-        <p>Este e-mail apresenta um resumo da performance orçamentária da sua unidade. O objetivo é identificar <strong>saldos ociosos</strong> que podem ser remanejados ou que representam um <strong>risco de perda de dotação</strong> para o próximo ciclo orçamentário.</p>
+        <p>Apresentamos a <strong>análise final da execução orçamentária de 2025</strong> para a sua unidade. O objetivo é consolidar os resultados e extrair insights para o planejamento do próximo exercício.</p>
         
-        <div style="background-color: #F3F4F6; border-left: 4px solid #4F46E5; padding: 15px; margin: 20px 0; border-radius: 4px;">
-            <h4 style="margin: 0 0 10px 0; font-weight: bold; font-size: 1.1em;">Análise Rápida: Unidade {unidade_nome}</h4>
+        <div style="background-color: #FFFBEB; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0; border-radius: 4px;">
+            <h4 style="margin: 0 0 10px 0; font-weight: bold; font-size: 1.1em;">Diagnóstico Final: {unidade_nome}</h4>
             <ul style="padding-left: 20px; margin: 0;">
-                <li><strong>Gap de Execução (Ocioso):</strong> <strong>{gap_global_perc:.1f}%</strong> do orçamento previsto para a unidade ainda não foi executado.</li>
-                <li><strong>Ponto Crítico de Atenção:</strong> <strong>{perc_ponto_atencao:.1f}%</strong> deste saldo está concentrado na natureza de <strong>"Serviços Especializados"</strong>, indicando um possível gargalo em processos de contratação.</li>
+                <li><strong>Resultado Final:</strong> A unidade encerrou o ano com um saldo não executado de <strong>{gap_global_perc:.1f}%</strong> (R$ {unidade_saldo:,.2f}). Este valor representa um capital que não foi empregado nas iniciativas planejadas.</li>
+                <li><strong>Principal Ponto de Atenção 2025:</strong> <strong>{perc_ponto_atencao:.1f}%</strong> do saldo ocioso está concentrado em <strong>"Serviços Especializados"</strong>, apontando para um gargalo recorrente em processos de contratação.</li>
             </ul>
         </div>
 
-        <h4>Próximos Passos Recomendados:</h4>
+        <h4>Recomendações para o Planejamento de 2026:</h4>
         <ol style="padding-left: 20px;">
-            <li><strong>Analisar Detalhes:</strong> Use o dashboard interativo para aprofundar a análise dos projetos e naturezas com maior ociosidade.</li>
-            <li><strong>Validar Projeções (Forecast):</strong> Verifique se as projeções de gastos para o restante do ano estão realistas.</li>
-            <li><strong>Propor Ações Corretivas:</strong> Identifique saldos que não serão utilizados e avalie o remanejamento para outras iniciativas.</li>
+            <li><strong>Analisar Causas Raiz:</strong> Utilize o dashboard interativo para investigar os projetos e ações com os maiores desvios entre o planejado e o executado.</li>
+            <li><strong>Revisar Planejamento Futuro:</strong> Os saldos significativos devem ser questionados no novo ciclo. Ações não iniciadas podem indicar desalinhamento entre o plano e a capacidade operacional.</li>
+            <li><strong>Discutir Resultados:</strong> Estamos à disposição para agendar uma reunião, analisar os dados em conjunto e traçar um plano de ação para otimizar a execução no próximo ano.</li>
         </ol>
 
         <p>Para uma análise completa, acesse o relatório detalhado clicando no botão abaixo:</p>
@@ -166,7 +163,7 @@ def preparar_e_enviar_email_por_unidade(unidade_nome: str, df_base_total: pd.Dat
                 <tr>
                   <td style="border-radius: 5px;" bgcolor="#4F46E5">
                     <a href="{dashboard_url}" target="_blank" style="padding: 12px 25px; border: 1px solid #4F46E5; border-radius: 5px; font-family: 'Roboto', sans-serif; font-size: 16px; color: #ffffff; text-decoration: none; display: inline-block; font-weight: bold;">
-                      Acessar Dashboard Interativo
+                      Acessar Análise Detalhada
                     </a>
                   </td>
                 </tr>
@@ -175,11 +172,10 @@ def preparar_e_enviar_email_por_unidade(unidade_nome: str, df_base_total: pd.Dat
           </tr>
         </table>
 
-        <p style="margin-top: 20px; font-size: 0.9em; color: #555;"><i>(Opcional) Clique na prévia abaixo para abrir o arquivo.</i></p>
+        <p style="margin-top: 20px; font-size: 0.9em; color: #555;"><i>Você também pode clicar na prévia abaixo para abrir o relatório.</i></p>
         <a href="{dashboard_url}">
             <img src="cid:screenshot_placeholder" alt="Prévia do Dashboard" style="width:100%; max-width:800px; border:1px solid #ccc; border-radius: 4px;">
         </a>
-        <p>Estamos à disposição para discutir os dados e auxiliar no seu plano de ação.</p>
         <p>Atenciosamente,<br><strong>Equipe de Planejamento e Controladoria</strong></p>
     </body>
     </html>

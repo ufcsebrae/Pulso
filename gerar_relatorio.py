@@ -75,7 +75,6 @@ def gerar_relatorio_para_unidade(unidade_alvo: str, df_base_total: pd.DataFrame)
         if df_agg.empty: return {}
         
         df_agg['total_natureza'] = df_agg.groupby('NATUREZA_FINAL')['Valor_Executado'].transform('sum')
-        df_agg['perc'] = (df_agg['total_natureza'] / df_agg['total_natureza'].sum() * 100)
         
         def format_projetos(group):
             top_projetos = group.nlargest(3, 'Valor_Executado')
@@ -90,47 +89,36 @@ def gerar_relatorio_para_unidade(unidade_alvo: str, df_base_total: pd.DataFrame)
     dados_graficos['treemap_compartilhado'] = criar_dados_treemap_com_projetos(df_compartilhados, unidade_alvo)
 
     # --- INÍCIO DA CORREÇÃO PARA O GRÁFICO DE ORÇAMENTO OCIOSO ---
-    # 1. Calcular o saldo ocioso DENTRO da unidade de negócio.
     df_unidade['saldo_nao_executado'] = df_unidade['Valor_Planejado'].fillna(0) - df_unidade['Valor_Executado'].fillna(0)
-
-    # 2. Agrupar por projeto DENTRO da unidade para obter o saldo consolidado de cada projeto.
     saldos_por_projeto_unidade = df_unidade.groupby(['PROJETO', 'tipo_projeto'])['saldo_nao_executado'].sum().reset_index()
-
-    # 3. Selecionar os 7 maiores saldos ociosos.
     df_top_ocioso_agg = saldos_por_projeto_unidade[saldos_por_projeto_unidade['saldo_nao_executado'] > 0].nlargest(7, 'saldo_nao_executado')
-
-    # 4. Criar o pivô para o gráfico a partir dos dados JÁ AGREGADOS.
     df_pivot_ocioso = df_top_ocioso_agg.pivot_table(index='PROJETO', columns='tipo_projeto', values='saldo_nao_executado', fill_value=0)
-    df_pivot_ocioso = df_pivot_ocioso.reindex(df_top_ocioso_agg['PROJETO']) # Manter a ordem do nlargest
-
-    # 5. Buscar os detalhes das ações (tooltips) com base nos projetos selecionados.
-    # Filtra o dataframe da unidade apenas para as ações dos projetos que estão no Top 7.
-    df_detalhes_ocioso = df_unidade[df_unidade['PROJETO'].isin(df_top_ocioso_agg['PROJETO'])]
-
+    df_pivot_ocioso = df_pivot_ocioso.reindex(df_top_ocioso_agg['PROJETO'])
+    
+    # CORREÇÃO 1: Detalhes do tooltip agora agrupam as ações para evitar repetição
     def formatar_acoes(group):
-        # Filtra ações com saldo negativo ou zero, ordena e pega as Top 3
-        top_acoes = group[group['saldo_nao_executado'] > 0].nlargest(3, 'saldo_nao_executado')
-        return [f"- {row.ACAO}: {formatar_brl(row.saldo_nao_executado)}" for _, row in top_acoes.iterrows()]
+        acoes_agrupadas = group.groupby('ACAO')['saldo_nao_executado'].sum()
+        top_acoes = acoes_agrupadas[acoes_agrupadas > 0].nlargest(3)
+        return [f"- {acao}: {formatar_brl(saldo)}" for acao, saldo in top_acoes.items()]
 
+    df_detalhes_ocioso = df_unidade[df_unidade['PROJETO'].isin(df_top_ocioso_agg['PROJETO'])]
     detalhes_por_projeto = df_detalhes_ocioso.groupby('PROJETO').apply(formatar_acoes, include_groups=False).reindex(df_pivot_ocioso.index)
 
-    # 6. Preparar os dados para o JSON do gráfico
     detalhes_exclusivo = []
     detalhes_compartilhado = []
-    
-    # Itera sobre o pivô para garantir que a ordem dos detalhes corresponda à ordem das barras
     for projeto, row in df_pivot_ocioso.iterrows():
         detalhe_formatado = detalhes_por_projeto.get(projeto, [])
-        if row.get('Exclusivo', 0) > 0:
+        tipo_projeto_real = df_top_ocioso_agg.loc[df_top_ocioso_agg['PROJETO'] == projeto, 'tipo_projeto'].iloc[0]
+        if tipo_projeto_real == 'Exclusivo':
             detalhes_exclusivo.append(detalhe_formatado)
             detalhes_compartilhado.append([])
-        elif row.get('Compartilhado', 0) > 0:
+        elif tipo_projeto_real == 'Compartilhado':
             detalhes_compartilhado.append(detalhe_formatado)
             detalhes_exclusivo.append([])
-        else: # Caso de projeto sem saldo, embora já filtrado
+        else:
             detalhes_exclusivo.append([])
             detalhes_compartilhado.append([])
-
+            
     dados_graficos['idle_budget'] = {
         "labels": df_pivot_ocioso.index.tolist(),
         "values_exclusivo": df_pivot_ocioso.get('Exclusivo', pd.Series(0, index=df_pivot_ocioso.index)).fillna(0).tolist(),
@@ -138,23 +126,32 @@ def gerar_relatorio_para_unidade(unidade_alvo: str, df_base_total: pd.DataFrame)
         "detalhes_exclusivo": detalhes_exclusivo,
         "detalhes_compartilhado": detalhes_compartilhado,
     }
-    # --- FIM DA CORREÇÃO ---
-
-    df_sem_plan = df_unidade[(df_unidade['Valor_Planejado'] <= 0) & (df_unidade['Valor_Executado'] > 0)].copy()
-
+    
+    # --- INÍCIO DA CORREÇÃO PARA O GRÁFICO DE EXECUÇÃO SEM PLANEJAMENTO ---
+    # CORREÇÃO 2: A lógica é refeita para agregar primeiro e depois filtrar.
     def criar_dados_exec_sem_plan(df_source):
-        if df_source.empty: return {}
-        df_agg = df_source.groupby(['NATUREZA_FINAL', 'PROJETO'])['Valor_Executado'].sum().reset_index()
-        if df_agg.empty: return {}
+        if df_source is None or df_source.empty: return {}
         
+        df_agg_total = df_source.groupby(['NATUREZA_FINAL', 'PROJETO']).agg(
+            Valor_Planejado_Total=('Valor_Planejado', 'sum'),
+            Valor_Executado_Total=('Valor_Executado', 'sum')
+        ).reset_index()
+
+        df_sem_plan_agg = df_agg_total[
+            (df_agg_total['Valor_Planejado_Total'] <= 0) & 
+            (df_agg_total['Valor_Executado_Total'] > 0)
+        ].copy()
+        
+        if df_sem_plan_agg.empty: return {}
+
         def formatar_projetos_sp(group):
-            top_projetos = group.nlargest(3, 'Valor_Executado')
-            return [f"- {row.PROJETO}: {formatar_brl(row.Valor_Executado)}" for _, row in top_projetos.iterrows()]
+            top_projetos = group.nlargest(3, 'Valor_Executado_Total')
+            return [f"- {row.PROJETO}: {formatar_brl(row.Valor_Executado_Total)}" for _, row in top_projetos.iterrows()]
         
-        df_sum = df_agg.groupby('NATUREZA_FINAL')['Valor_Executado'].sum().sort_values(ascending=False)
+        df_sum = df_sem_plan_agg.groupby('NATUREZA_FINAL')['Valor_Executado_Total'].sum().sort_values(ascending=False)
         if df_sum.empty: return {}
         
-        detalhes_projetos_series = df_agg.groupby('NATUREZA_FINAL').apply(formatar_projetos_sp, include_groups=False).reindex(df_sum.index)
+        detalhes_projetos_series = df_sem_plan_agg.groupby('NATUREZA_FINAL').apply(formatar_projetos_sp, include_groups=False).reindex(df_sum.index)
         detalhes_projetos = [item if isinstance(item, list) else [] for item in detalhes_projetos_series]
 
         return {
@@ -163,29 +160,10 @@ def gerar_relatorio_para_unidade(unidade_alvo: str, df_base_total: pd.DataFrame)
             "projetos": detalhes_projetos
         }
 
-    dados_graficos['unplanned_exclusivo'] = criar_dados_exec_sem_plan(df_sem_plan[df_sem_plan['tipo_projeto'] == 'Exclusivo'])
-    dados_graficos['unplanned_compartilhado'] = criar_dados_exec_sem_plan(df_sem_plan[df_sem_plan['tipo_projeto'] == 'Compartilhado'])
+    dados_graficos['unplanned_exclusivo'] = criar_dados_exec_sem_plan(df_exclusivos)
+    dados_graficos['unplanned_compartilhado'] = criar_dados_exec_sem_plan(df_compartilhados)
     
     logger.info(f"[{unidade_alvo}] Dados para os gráficos agregados.")
-
-    try:
-        template_path = CONFIG.paths.base_dir / "dashboard_template.html"
-        template_string = template_path.read_text(encoding='utf-8')
-        
-        final_html = template_string
-        for key, value in kpi_dict.items():
-            final_html = final_html.replace(key, str(value))
-        
-        json_string = json.dumps(dados_graficos)
-        final_html = final_html.replace("__JSON_DATA_PLACEHOLDER__", json_string)
-        
-        output_filename = f"dashboard_{unidade_alvo.replace(' ', '_').replace('/', '_')}.html"
-        output_path = CONFIG.paths.docs_dir / output_filename
-        
-        with open(output_path, 'w', encoding='utf-8') as f: f.write(final_html)
-        logger.info(f"Dashboard para '{unidade_alvo}' salvo com sucesso em: '{output_path}'")
-    except Exception as e:
-        logger.exception(f"Ocorreu um erro ao gerar o HTML para '{unidade_alvo}': {e}")
 
     try:
         template_path = CONFIG.paths.base_dir / "dashboard_template.html"
