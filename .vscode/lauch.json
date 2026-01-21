@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File", // O nome não importa, pode deixar assim
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py", // Linha alterada
+            "console": "integratedTerminal",
+            "env": {} // Linha adicionada
+        }
+    ]
+}
