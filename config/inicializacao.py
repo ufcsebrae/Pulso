@@ -5,7 +5,7 @@ from pathlib import Path
 
 # A importação do 'config' não é mais necessária para o caminho da DLL,
 # mas pode ser mantida caso outros scripts a utilizem.
-from config import CONFIG
+from .config import CONFIG
 
 logger = logging.getLogger(__name__)
 

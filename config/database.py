@@ -6,7 +6,7 @@ from pyadomd import Pyadomd
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine, URL
 
-from config import DbConfig
+from .config import DbConfig
 
 logger = logging.getLogger(__name__)
 

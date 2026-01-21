@@ -6,11 +6,11 @@ import pandas as pd
 
 # 1. INICIALIZAÇÃO CRÍTICA
 try:
-    from logger_config import configurar_logger
+    from config.logger_config import configurar_logger
     # Passa o nome do arquivo de log específico para esta pipeline
     configurar_logger("pipeline_principal.log")
     
-    from inicializacao import carregar_drivers_externos
+    from config.inicializacao import carregar_drivers_externos
     carregar_drivers_externos()
 except (ImportError, FileNotFoundError, Exception) as e:
     logging.basicConfig(level=logging.INFO)
@@ -19,10 +19,10 @@ except (ImportError, FileNotFoundError, Exception) as e:
 
 # ... (o resto do seu script main.py permanece o mesmo)
 # Nenhuma outra mudança é necessária aqui.
-from config import CONFIG
+from config.config import CONFIG
 from comunicacao.carregamento import carregar_dataframe_para_sql
-from database import get_conexao
-from extracao import obter_dados_brutos
+from config.database import get_conexao
+from processamento.extracao import obter_dados_brutos
 from processamento.correcao_chaves import iniciar_correcao_interativa_chaves
 from processamento.enriquecimento import enriquecer_orcado_com_cc
 from processamento.validacao import (

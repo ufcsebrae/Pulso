@@ -7,8 +7,8 @@ import pandas as pd
 import numpy as np
 
 try:
-    from logger_config import configurar_logger
-    from inicializacao import carregar_drivers_externos
+    from config.logger_config import configurar_logger
+    from config.inicializacao import carregar_drivers_externos
 except ImportError:
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
@@ -19,12 +19,12 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 try:
-    from config import CONFIG
+    from config.config import CONFIG
 except ImportError:
     logger.critical("Erro: O arquivo 'config.py' não foi encontrado.")
     sys.exit(1)
 
-from database import get_conexao
+from config.database import get_conexao
 
 def formatar_brl(valor):
     if pd.isna(valor) or valor == 0: return "R$ 0"
@@ -36,7 +36,7 @@ def carregar_mapas_padronizacao() -> tuple[dict, dict]:
     logger.info("Carregando arquivos de mapeamento para padronização...")
     mapa_unidade, mapa_natureza = {}, {}
     try:
-        unidade_csv_path = Path("UNIDADE.CSV")
+        unidade_csv_path = CONFIG.paths.unidade_csv 
         if unidade_csv_path.exists():
             df_unidade = pd.read_csv(unidade_csv_path, sep=';', encoding='utf-8-sig', on_bad_lines='warn')
             df_unidade['nm_unidade_padronizada_std'] = df_unidade['nm_unidade_padronizada'].astype(str).str.strip().str.upper()
@@ -45,7 +45,7 @@ def carregar_mapas_padronizacao() -> tuple[dict, dict]:
         else:
             logger.warning("Arquivo 'UNIDADE.CSV' não encontrado.")
 
-        natureza_csv_path = Path("NATUREZA.csv")
+        natureza_csv_path = CONFIG.paths.natureza_csv 
         if natureza_csv_path.exists():
             df_natureza = pd.read_csv(natureza_csv_path, sep=';', encoding='utf-8-sig', on_bad_lines='warn')
             df_natureza['Descricao_Natureza_Orcamentaria_std'] = df_natureza['Descricao_Natureza_Orcamentaria'].astype(str).str.strip().str.upper()

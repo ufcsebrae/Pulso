@@ -12,25 +12,32 @@ load_dotenv()
 @dataclass(frozen=True)
 class PathsConfig:
     """Centraliza todos os caminhos de arquivos e diretórios usados no projeto."""
-
-    base_dir: Path = Path(__file__).resolve().parent
+    base_dir: Path = Path(__file__).resolve().parent.parent 
     
     # Diretórios de Saída
-    docs_dir: Path = base_dir / "docs"  # Pasta para relatórios publicados
+    docs_dir: Path = base_dir / "docs"
     logs_dir: Path = base_dir / "logs"
 
     # Diretório de Templates e Estilos
     templates_dir: Path = base_dir / "templates"
-    static_dir: Path = docs_dir / "static"  # Pasta para CSS dentro de 'docs'
+    static_dir: Path = docs_dir / "static"
+    
+    # Diretório de Dados
+    dados_dir: Path = base_dir / "dados"
 
-    # Arquivos de Entrada e Dados
+    # Arquivos de Entrada e Dados (usando a pasta 'dados_dir')
     query_nacional: Path = base_dir / "queries" / "nacional.sql"
     query_cc: Path = base_dir / "queries" / "cc.sql"
     cache_db: Path = base_dir / "cache_dados.db"
-    mapa_correcoes: Path = base_dir / "mapa_correcoes.json"
+    
+    # Aponta para o arquivo DENTRO da pasta 'dados'
+    mapa_correcoes: Path = dados_dir / "mapa_correcoes.json"
+    gerentes_csv: Path = dados_dir / "gerentes.csv"
+    mapa_naturezas_csv: Path = dados_dir / "mapa_naturezas.csv" # Mantenha por consistência ou remova se já excluiu
+    unidade_csv: Path = dados_dir / "UNIDADE.CSV" # Adicionando para UNIDADE.CSV
+    natureza_csv: Path = dados_dir / "NATUREZA.csv" # Adicionando para NATUREZA.csv
+    
     drivers: Path = base_dir / "drivers"
-    gerentes_csv: Path = base_dir / "gerentes.csv"
-    mapa_naturezas_csv: Path = base_dir / "mapa_naturezas.csv"
 
 
 @dataclass(frozen=True)

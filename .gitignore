@@ -10,7 +10,7 @@ cache_dados
 logs/
 
 # Arquivos Gerados (Saídas)
-docs/
+
 *.csv
 *.xlsx
 *.png

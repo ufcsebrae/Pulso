@@ -6,7 +6,7 @@ import sys
 from typing import Final
 
 # Importa a configuração para usar o caminho da pasta de logs
-from config import CONFIG
+from .config import CONFIG
 
 LOG_LEVEL: Final[int] = logging.INFO
 

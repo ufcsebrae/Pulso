@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict
 
 import pandas as pd
-from config import CONFIG
+from config.config import CONFIG
 
 logger = logging.getLogger(__name__)
 

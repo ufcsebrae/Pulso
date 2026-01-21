@@ -6,13 +6,13 @@ import pandas as pd
 import json
 
 try:
-    from processamento_dados_base import obter_dados_processados, formatar_brl
+    from processamento.processamento_dados_base import obter_dados_processados, formatar_brl
 except ImportError:
     logging.basicConfig(level=logging.INFO)
     logging.critical("Erro: O arquivo 'processamento_dados_base.py' ou suas funções não foram encontrados.")
     sys.exit(1)
 
-from config import CONFIG
+from config.config import CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +166,7 @@ def gerar_relatorio_para_unidade(unidade_alvo: str, df_base_total: pd.DataFrame)
     logger.info(f"[{unidade_alvo}] Dados para os gráficos agregados.")
 
     try:
-        template_path = CONFIG.paths.base_dir / "dashboard_template.html"
+        template_path = CONFIG.paths.templates_dir / "dashboard_template.html"
         template_string = template_path.read_text(encoding='utf-8')
         
         final_html = template_string

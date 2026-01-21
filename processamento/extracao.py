@@ -5,9 +5,9 @@ from pathlib import Path
 import pandas as pd
 
 # Importações do projeto
-from config import CONFIG
-from database import get_conexao
-from utils import carregar_script_sql
+from config.config import CONFIG
+from config.database import get_conexao
+from utils.utils import carregar_script_sql
 
 logger = logging.getLogger(__name__)
 
