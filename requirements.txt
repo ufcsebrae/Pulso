@@ -11,3 +11,4 @@ plotly
 selenium
 webdriver-manager
 pywin32
+openpyxl

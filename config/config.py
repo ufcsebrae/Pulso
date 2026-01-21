@@ -16,6 +16,7 @@ class PathsConfig:
     
     # Diretórios de Saída
     docs_dir: Path = base_dir / "docs"
+    relatorios_excel_dir: Path = docs_dir / "excel"
     logs_dir: Path = base_dir / "logs"
 
     # Diretório de Templates e Estilos

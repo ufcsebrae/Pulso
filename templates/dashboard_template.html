@@ -46,6 +46,39 @@
             <div class="card"><h2 class="text-xl font-bold text-gray-800 mb-2">Execução Sem Planejamento (Exclusivos)</h2><p class="text-sm text-gray-500 mb-4">Gastos em naturezas onde o orçamento era zero.</p><div class="chart-container"><canvas id="unplannedExclusivoChart"></canvas></div></div>
             <div class="card"><h2 class="text-xl font-bold text-gray-800 mb-2">Execução Sem Planejamento (Compartilhados)</h2><p class="text-sm text-gray-500 mb-4">Gastos em naturezas onde o orçamento era zero.</p><div class="chart-container"><canvas id="unplannedCompartilhadoChart"></canvas></div></div>
         </div>
+                <!-- INÍCIO DA NOVA SEÇÃO DE ANÁLISE DE PROJETOS EXCLUSIVOS -->
+        <div class="grid grid-cols-1 gap-8 my-10">
+            <div class="card">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Análise Detalhada de Projetos Exclusivos</h2>
+                <p class="text-sm text-gray-500 mb-6">
+                    As visualizações abaixo focam apenas nos projetos cuja gestão orçamentária é exclusiva da unidade, permitindo uma análise profunda de proporção e performance.
+                </p>
+            </div>
+        </div>
+
+        <!-- 1. SUNBURST CHART -->
+        <div class="grid grid-cols-1 gap-8 mb-10">
+            <div class="card">
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Visão Hierárquica do Orçamento (Sunburst)</h2>
+                <p class="text-sm text-gray-500 mb-4">
+                    Distribuição do <strong>Valor Planejado</strong> (tamanho da fatia) por Projeto e Natureza. A cor indica o <strong>Percentual de Execução</strong> (quanto mais verde, melhor a execução).
+                </p>
+                <div id="sunburstProjetos" class="chart-container" style="height: 500px;">__SUNBURST_PLACEHOLDER__</div>
+            </div>
+        </div>
+
+        <!-- 2. HEATMAP CHART -->
+        <div class="grid grid-cols-1 gap-8 mb-10">
+            <div class="card">
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Mapa de Performance (Heatmap)</h2>
+                <p class="text-sm text-gray-500 mb-4">
+                    Cruzamento da performance de execução (%) entre Projetos (linhas) e Naturezas Orçamentárias (colunas). Identifique rapidamente onde a execução está crítica (vermelho) ou saudável (verde).
+                </p>
+                <div id="heatmapProjetos" class="chart-container" style="height: 600px;">__HEATMAP_PLACEHOLDER__</div>
+            </div>
+        </div>
+        <!-- FIM DA NOVA SEÇÃO -->
+
     </main>
     
     <script id="data-island" type="application/json">__JSON_DATA_PLACEHOLDER__</script>
