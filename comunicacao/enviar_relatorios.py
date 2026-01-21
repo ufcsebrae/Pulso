@@ -9,7 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 import time
-import argparse # Biblioteca para argumentos de linha de comando
+import argparse
 
 try:
     from processamento.processamento_dados_base import obter_dados_processados
@@ -84,7 +84,6 @@ def enviar_via_outlook(destinatario: str, cc: str, assunto: str, corpo_html: str
                 if anexo_path and anexo_path.exists():
                     attachment = mail.Attachments.Add(str(anexo_path.resolve()))
                     if anexo_path.suffix.lower() == '.png':
-                        # Lógica para embutir a imagem no corpo do e-mail
                         cid = "dashboard_preview"
                         attachment.PropertyAccessor.SetProperty("http://schemas.microsoft.com/mapi/proptag/0x3712001F", cid)
                         corpo_html = corpo_html.replace('cid:screenshot_placeholder', f'cid:{cid}')
@@ -127,10 +126,8 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
         logger.error(f"Falha ao gerar arquivo Excel para '{unidade_nova_nome}': {e}")
         return
 
-    # Captura o screenshot ANTES de montar o corpo do e-mail
     screenshot_path = capturar_screenshot_relatorio(html_path)
     
-    # Lógica para montar o bloco do screenshot de forma segura
     if screenshot_path:
         screenshot_html_block = f'''
         <div style="margin-top: 25px; padding-top: 25px; border-top: 1px solid #e2e8f0;">
@@ -140,13 +137,13 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
             </a>
         </div>'''
     else:
-        screenshot_html_block = "" # Bloco fica vazio se a captura falhar
+        screenshot_html_block = ""
 
-    assunto = f"📊 Gestão Tática 2025: Base de Dados e Dashboard - {unidade_nova_nome}"
+    assunto = f"📊 Gestão Transparente 2025: Base de Dados e Dashboard - {unidade_nova_nome}"
     tratamento = info_gerente.get('tratamento', 'Prezado(a)')
     nome_gerente = info_gerente.get('gerente', 'Gestor(a)')
 
-    # Template final do e-mail
+    # --- TEMPLATE FINAL COM BOTÃO SIMPLES E SEGURO ---
     corpo_email = f"""
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -171,28 +168,17 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
                         </div>
 
                         <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation">
-                            <tr><td align="center" style="padding: 20px 0;">
-                                
-                               <!-- O BOTÃO "À PROVA DE BALAS" -->
-                                <table border="0" cellspacing="0" cellpadding="0" role="presentation">
-                                    <tr>
-                                        <td align="center" style="background-color: #2563eb; border-radius: 8px; border-bottom: 4px solid #1d4ed8;">
-                                            <a href="{dashboard_url}" target="_blank" 
-                                               style="color: #ffffff; 
-                                                      font-size: 16px; 
-                                                      font-weight: bold; 
-                                                      text-decoration: none; 
-                                                      padding: 16px 32px; 
-                                                      display: inline-block;">
-                                                👉 Acessar Painel Interativo
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
+                            <tr><td align="center" style="padding: 12px 0;">
+                                <!-- BOTÃO COM ESTILO SIMPLES E COMPATÍVEL -->
+                                <a href="{dashboard_url}" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
+                                    👉 Acessar Painel Interativo
+                                </a>
+                            </td></tr>
+                        </table>
                         
                         {screenshot_html_block}
 
-                        <p style="margin: 32px 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">Este ecossistema de dados foi desenhado para que a informação não fique retida, mas sim circule, servindo de suporte estratégico para o alcance das nossas metas setoriais e territoriais.</p>
+                        <p style="margin: 32px 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">Este ecossistema de dados foi desenhado para que a informação não fique retida, mas sim circule, servindo de suporte estratégico para o alcance das nossas metas.</p>
                         <p style="margin: 0; font-size: 16px; color: #334155; line-height: 1.75;">Seguimos à disposição para apoiar na leitura técnica desses indicadores.</p>
 
                         <p style="margin: 40px 0 0 0; font-size: 16px; color: #475569;">Atenciosamente,<br><b style="color: #1e293b;">Equipe Contabilidade/Orçamento</b></p>
@@ -288,4 +274,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
