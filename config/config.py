@@ -1,101 +1,95 @@
-# config.py
+# config/config.py (VERSÃO FINAL COM CORREÇÃO DE NOME DO CACHE)
 import os
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Final
-
+from dataclasses import dataclass
+from typing import Optional
 from dotenv import load_dotenv
 
+# Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
 
-
-@dataclass(frozen=True)
-class PathsConfig:
-    """Centraliza todos os caminhos de arquivos e diretórios usados no projeto."""
-    base_dir: Path = Path(__file__).resolve().parent.parent 
-    
-    # Diretórios de Saída
-    docs_dir: Path = base_dir / "docs"
-    relatorios_excel_dir: Path = docs_dir / "excel"
-    logs_dir: Path = base_dir / "logs"
-
-    # Diretório de Templates e Estilos
-    templates_dir: Path = base_dir / "templates"
-    static_dir: Path = docs_dir / "static"
-    
-    # Diretório de Dados
-    dados_dir: Path = base_dir / "dados"
-
-    # Arquivos de Entrada e Dados (usando a pasta 'dados_dir')
-    query_nacional: Path = base_dir / "queries" / "nacional.sql"
-    query_cc: Path = base_dir / "queries" / "cc.sql"
-    cache_db: Path = base_dir / "cache_dados.db"
-    
-    # Aponta para o arquivo DENTRO da pasta 'dados'
-    mapa_correcoes: Path = dados_dir / "mapa_correcoes.json"
-    gerentes_csv: Path = dados_dir / "gerentes.csv"
-    mapa_naturezas_csv: Path = dados_dir / "mapa_naturezas.csv" # Mantenha por consistência ou remova se já excluiu
-    unidade_csv: Path = dados_dir / "UNIDADE.CSV" # Adicionando para UNIDADE.CSV
-    natureza_csv: Path = dados_dir / "NATUREZA.csv" # Adicionando para NATUREZA.csv
-    
-    drivers: Path = base_dir / "drivers"
-
-
-@dataclass(frozen=True)
+@dataclass
 class DbConfig:
-    """Define a estrutura para uma configuração de banco de dados."""
+    """Define a estrutura para configurações de conexão, compatível com database.py."""
     tipo: str
-    driver: str | None = None
-    servidor: str | None = None
-    banco: str | None = None
-    caminho: Path | None = None
-    provider: str | None = None
-    data_source: str | None = None
-    catalog: str | None = None
-    trusted_connection: bool = True
+    servidor: Optional[str] = None
+    banco: Optional[str] = None
+    driver: Optional[str] = None
+    provider: Optional[str] = None
+    data_source: Optional[str] = None
+    catalog: Optional[str] = None
+    caminho: Optional[Path] = None
 
+class Config:
+    """Classe principal para centralizar as configurações do projeto."""
+    def __init__(self):
+        db_server_financa = os.getenv("DB_SERVER_FINANCA")
+        db_database_financa = os.getenv("DB_DATABASE_FINANCA")
+        db_server_hub = os.getenv("DB_SERVER_HUB")
+        db_database_hub = os.getenv("DB_DATABASE_HUB")
 
-@dataclass(frozen=True)
-class AppConfig:
-    """Agrega todas as configurações da aplicação."""
-    paths: PathsConfig
-    conexoes: Dict[str, DbConfig]
+        if not db_server_financa or not db_server_hub:
+            raise ValueError("Uma das variáveis de servidor ('DB_SERVER_FINANCA', 'DB_SERVER_HUB') não foi encontrada no .env.")
 
+        self.base_dir = Path(__file__).resolve().parent.parent
+        self.paths = self._Paths(self.base_dir)
+        self.paths.cache_dir.mkdir(parents=True, exist_ok=True)
 
-def get_config() -> AppConfig:
-    """Constrói e retorna o objeto de configuração principal da aplicação."""
-    paths = PathsConfig()
-    driver_sql = os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server")
+        self.conexoes = {
+            "FINANCA_SQL": DbConfig(
+                tipo='sql',
+                servidor=db_server_financa,
+                banco=db_database_financa,
+                driver="ODBC Driver 18 for SQL Server"
+            ),
+            "HubDados": DbConfig(
+                tipo='sql',
+                servidor=db_server_hub,
+                banco=db_database_hub,
+                driver="ODBC Driver 18 for SQL Server"
+            ),
+            # Corrigido para usar o nome correto do atributo
+            "CacheDB": DbConfig(
+                tipo='sqlite',
+                caminho=self.paths.cache_db
+            ),
+        }
 
-    conexoes = {
-        "HubDados": DbConfig(
-            tipo="sql",
-            servidor=os.getenv("DB_SERVER_HUB"),
-            banco=os.getenv("DB_DATABASE_HUB"),
-            driver=driver_sql,
-        ),
-        "FINANCA_SQL": DbConfig(
-            tipo="sql",
-            servidor=os.getenv("DB_SERVER_FINANCA"),
-            banco=os.getenv("DB_DATABASE_FINANCA"),
-            driver=driver_sql,
-        ),
-        "CacheDB": DbConfig(tipo="sqlite", caminho=paths.cache_db),
-        "OLAP": DbConfig(
-            tipo="olap",
-            provider=os.getenv("OLAP_PROVIDER"),
-            data_source=os.getenv("OLAP_SOURCE"),
-            catalog=os.getenv("OLAP_CATALOG"),
-        ),
-    }
+    class _Paths:
+        """Classe interna que APENAS define os caminhos do projeto."""
+        def __init__(self, base_dir):
+            self.base_dir = base_dir
+            self.config_dir = self.base_dir / "config"
+            self.logs_dir = self.base_dir / "logs"
+            self.docs_dir = self.base_dir / "docs"
+            self.drivers = self.base_dir / "drivers"
+            self.templates_dir = self.base_dir / "templates"
+            self.relatorios_excel_dir = self.docs_dir / "excel"
+            self.queries_dir = self.base_dir / "queries"
 
-    if not conexoes["HubDados"].servidor or not conexoes["FINANCA_SQL"].servidor:
-        raise ValueError("Erro: Variáveis de ambiente para conexões SQL não definidas.")
+            self.dados_dir = self.base_dir / "dados"
+            
+            # Aponta todos os arquivos para os diretórios corretos
+            self.cache_dir = self.base_dir / "cache"
+            self.cache_db = self.cache_dir / "local_cache.db"
+            self.query_nacional = self.queries_dir / "nacional.sql"
+            self.query_cc = self.queries_dir / "cc.sql"
+            
+            # Aponta todos os arquivos de dados para a pasta 'dados'
+            self.gerentes_csv = self.dados_dir / "gerentes.csv"
+            self.unidade_csv = self.dados_dir / "UNIDADE.CSV"
+            self.natureza_csv = self.dados_dir / "NATUREZA.csv"
+            self.mapa_correcoes = self.dados_dir / "mapa_correcoes.json"
 
-    if conexoes["OLAP"].tipo == "olap" and not all([conexoes["OLAP"].provider, conexoes["OLAP"].data_source, conexoes["OLAP"].catalog]):
-        raise ValueError("Erro: Variáveis de ambiente para conexão OLAP não definidas.")
+# --- Instância única da configuração ---
+CONFIG = Config()
+# --- Instância única da configuração ---
+CONFIG = Config()
 
-    return AppConfig(paths=paths, conexoes=conexoes)
-
-
-CONFIG: Final[AppConfig] = get_config()
+# ==============================================================================
+#  DESIGN SYSTEM
+# ==============================================================================
+CORES = {
+    'brand_primary': '#4F46E5', 'project_exclusive': '#3B82F6', 'project_shared': '#10B981',
+    'alert_danger': '#EF4444', 'alert_warning': '#D97706', 'trend_total': '#4338CA',
+}

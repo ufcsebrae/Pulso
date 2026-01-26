@@ -17,8 +17,7 @@ except (ImportError, FileNotFoundError, Exception) as e:
     logging.critical("Falha gravíssima na inicialização: %s", e, exc_info=True)
     sys.exit(1)
 
-# ... (o resto do seu script main.py permanece o mesmo)
-# Nenhuma outra mudança é necessária aqui.
+
 from config.config import CONFIG
 from comunicacao.carregamento import carregar_dataframe_para_sql
 from config.database import get_conexao

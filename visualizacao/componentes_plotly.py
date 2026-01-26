@@ -2,6 +2,7 @@
 import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
+from config.config import CORES # Importa o dicionário de cores
 
 def criar_grafico_sunburst(df_exclusivos: pd.DataFrame) -> str:
     """Gera o código HTML de um gráfico Sunburst a partir dos dados de projetos exclusivos."""
@@ -31,9 +32,7 @@ def criar_grafico_sunburst(df_exclusivos: pd.DataFrame) -> str:
         branchvalues='total',
         marker=dict(
             colors=df_sun['perc_exec'].tolist() + cores_projeto,
-            colorscale='RdYlGn',
-            cmin=0,
-            cmax=120,
+            colorscale='RdYlGn', cmin=0, cmax=120,
             colorbar=dict(title='% Executado')
         ),
         hovertemplate='<b>%{label}</b><br>Planejado: %{value:,.2f}<br>Execução: %{color:.1f}%<extra></extra>'
@@ -66,19 +65,14 @@ def criar_grafico_heatmap(df_exclusivos: pd.DataFrame) -> str:
     dynamic_height = max(400, num_projetos * 35)
 
     fig = go.Figure(data=go.Heatmap(
-        z=pivot_df.values,
-        x=pivot_df.columns,
-        y=pivot_df.index,
-        colorscale='RdYlGn',
-        zmin=0, zmid=80, zmax=120,
+        z=pivot_df.values, x=pivot_df.columns, y=pivot_df.index,
+        colorscale='RdYlGn', zmin=0, zmid=80, zmax=120,
         hovertemplate='Projeto: %{y}<br>Natureza: %{x}<br>Execução: %{z:.1f}%<extra></extra>',
         xgap=1, ygap=1
     ))
     fig.update_layout(
-        yaxis_nticks=num_projetos,
-        xaxis_tickangle=-45,
-        height=dynamic_height,
-        margin=dict(l=250)
+        yaxis_nticks=num_projetos, xaxis_tickangle=-45,
+        height=dynamic_height, margin=dict(l=250)
     )
     
     return fig.to_html(full_html=False)
@@ -107,24 +101,21 @@ def criar_grafico_inercia(df_exclusivos: pd.DataFrame) -> str:
     idx_max = df_inercia.groupby('NATUREZA_FINAL')['inercia_meses'].idxmax()
     df_maior_inercia = df_inercia.loc[idx_max].sort_values(by='inercia_meses', ascending=False)
     
-    hover_text = [f"<b>Projeto:</b> {row['PROJETO']}<br><b>Atraso:</b> {row['inercia_meses']:.0f} meses" for _, row in df_maior_inercia.iterrows()]
+    hover_text = [
+        f"<b>Projeto:</b> {row['PROJETO']}<br>"
+        f"<b>Ação:</b> {row['ACAO']}<br>"
+        f"<b>Atraso:</b> {row['inercia_meses']:.0f} meses"
+        for _, row in df_maior_inercia.iterrows()
+    ]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=df_maior_inercia['inercia_meses'],
-        y=df_maior_inercia['NATUREZA_FINAL'],
-        orientation='h',
-        marker_color='#ef4444',
-        text=df_maior_inercia['inercia_meses'],
-        textposition='outside',
-        hoverinfo='text',
-        hovertext=hover_text
+        x=df_maior_inercia['inercia_meses'], y=df_maior_inercia['NATUREZA_FINAL'],
+        orientation='h', marker_color=CORES['alert_danger'],
+        text=df_maior_inercia['inercia_meses'], textposition='outside',
+        hoverinfo='text', hovertext=hover_text
     ))
-    fig.update_layout(
-        plot_bgcolor='white',
-        yaxis=dict(autorange="reversed"),
-        margin=dict(l=250)
-    )
+    fig.update_layout(plot_bgcolor='white', yaxis=dict(autorange="reversed"), margin=dict(l=250))
 
     return fig.to_html(full_html=False)
 

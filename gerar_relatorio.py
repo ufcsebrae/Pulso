@@ -1,4 +1,4 @@
-# gerar_relatorio.py (Refatorado)
+# gerar_relatorio.py (VERSÃO FINAL COM INJEÇÃO DE CORES)
 import argparse
 import logging
 import sys
@@ -6,26 +6,27 @@ import json
 import pandas as pd
 
 try:
-    from processamento.processamento_dados_base import obter_dados_processados
-    from comunicacao.enviar_relatorios import carregar_gerentes_do_csv
-    from config.config import CONFIG
-    # Importando os novos componentes de visualização
-    from visualizacao.componentes_plotly import (
-        criar_grafico_sunburst,
-        criar_grafico_heatmap,
-        criar_grafico_inercia
-    )
-    from visualizacao.preparadores_dados import (
-        preparar_dados_kpi,
-        preparar_dados_grafico_tendencia,
-        preparar_dados_treemap,
-        preparar_dados_orcamento_ocioso,
-        preparar_dados_execucao_sem_planejamento
-    )
-except ImportError as e:
+    from config.logger_config import configurar_logger
+    configurar_logger("geracao_relatorio.log")
+    from config.inicializacao import carregar_drivers_externos
+    carregar_drivers_externos()
+except (ImportError, FileNotFoundError) as e:
     logging.basicConfig(level=logging.INFO)
-    logging.critical(f"Erro ao importar módulos. Verifique o ambiente e a estrutura de pastas: {e}")
+    logging.critical("Falha gravíssima na inicialização: %s", e, exc_info=True)
     sys.exit(1)
+
+from processamento.processamento_dados_base import obter_dados_processados
+from comunicacao.enviar_relatorios import carregar_gerentes_do_csv
+# Importando CORES junto com CONFIG
+from config.config import CONFIG, CORES
+from visualizacao.componentes_plotly import criar_grafico_sunburst, criar_grafico_heatmap, criar_grafico_inercia
+from visualizacao.preparadores_dados import (
+    preparar_dados_kpi,
+    preparar_dados_grafico_tendencia,
+    preparar_dados_treemap,
+    preparar_dados_orcamento_ocioso,
+    preparar_dados_execucao_sem_planejamento
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +37,9 @@ def gerar_relatorio_para_unidade(unidade_antiga: str, unidade_nova: str, df_base
         logger.warning(f"Nenhum dado encontrado para a unidade '{unidade_antiga}'. Relatório não gerado.")
         return
 
-    # 1. Separa os dados base
     df_exclusivos = df_unidade[df_unidade['tipo_projeto'] == 'Exclusivo'].copy()
     df_compartilhados = df_unidade[df_unidade['tipo_projeto'] == 'Compartilhado'].copy()
 
-    # 2. Prepara os dicionários de dados
     kpi_dict = preparar_dados_kpi(df_unidade, df_exclusivos, df_compartilhados, unidade_nova)
     
     dados_graficos_json = {
@@ -48,31 +47,28 @@ def gerar_relatorio_para_unidade(unidade_antiga: str, unidade_nova: str, df_base
         "treemap_exclusivo": preparar_dados_treemap(df_exclusivos),
         "treemap_compartilhado": preparar_dados_treemap(df_compartilhados),
         "idle_budget": preparar_dados_orcamento_ocioso(df_unidade),
-        "unplanned_exclusivo": preparar_dados_execucao_sem_planejamento(df_exclusivos),
-        "unplanned_compartilhado": preparar_dados_execucao_sem_planejamento(df_compartilhados)
+        "unplanned_exclusivo": preparar_dados_execucao_sem_planejamento(df_exclusivos, 'Exclusivo'),
+        "unplanned_compartilhado": preparar_dados_execucao_sem_planejamento(df_compartilhados, 'Compartilhado'),
+        # --- CORREÇÃO APLICADA AQUI: Injetando as cores no JSON ---
+        "cores": CORES
     }
 
-    # 3. Gera os componentes HTML dos gráficos Plotly
     placeholders_html = {
         "__SUNBURST_PLACEHOLDER__": criar_grafico_sunburst(df_exclusivos),
         "__HEATMAP_PLACEHOLDER__": criar_grafico_heatmap(df_exclusivos),
         "__INERCIA_PLACEHOLDER__": criar_grafico_inercia(df_exclusivos)
     }
 
-    # 4. Monta e salva o arquivo HTML final
     try:
         template_path = CONFIG.paths.templates_dir / "dashboard_template.html"
         final_html = template_path.read_text(encoding='utf-8')
 
-        # Substitui placeholders de KPI e de gráficos Plotly
         for key, value in {**kpi_dict, **placeholders_html}.items():
             final_html = final_html.replace(key, str(value))
         
-        # Insere a "ilha de dados" JSON para o Chart.js
         json_string = json.dumps(dados_graficos_json, indent=None, ensure_ascii=False)
-        final_html = final_html.replace('__JSON_DATA_PLACEHOLDER__', json_string)
+        final_html = final_html.replace('<!--__JSON_DATA_PLACEHOLDER__-->', json_string)
         
-        # Salva o arquivo
         output_sanitized_name = unidade_nova.replace(' ', '_').replace('/', '_')
         output_path = CONFIG.paths.docs_dir / f"dashboard_{output_sanitized_name}.html"
         output_path.write_text(final_html, encoding='utf-8')
@@ -81,25 +77,20 @@ def gerar_relatorio_para_unidade(unidade_antiga: str, unidade_nova: str, df_base
     except Exception as e:
         logger.exception(f"Ocorreu um erro ao gerar o HTML para '{unidade_nova}': {e}")
 
-# ... (o restante do arquivo, como as funções 'main' e 'selecionar_unidades_interativamente', permanece o mesmo)
 def selecionar_unidades_interativamente(unidades_map: dict) -> list[str]:
     if not unidades_map: return []
     lista_exibicao = sorted([(v['nome_novo'], k) for k, v in unidades_map.items()])
     print("\n--- Unidades Disponíveis para Geração de Relatório ---")
-    for i, (nome_novo, _) in enumerate(lista_exibicao, 1):
-        print(f"  {i:2d}) {nome_novo}")
-    print("  all) Gerar para todas as unidades")
-    print("-" * 55)
+    for i, (nome_novo, _) in enumerate(lista_exibicao, 1): print(f"  {i:2d}) {nome_novo}")
+    print("  all) Gerar para todas as unidades"); print("-" * 55)
     while True:
         escolha_str = input("Escolha os números (ex: 1, 3, 5), 'all' ou enter para sair: ").strip()
         if not escolha_str: return []
-        if escolha_str.lower() == 'all':
-            return [item[1] for item in lista_exibicao]
+        if escolha_str.lower() == 'all': return [item[1] for item in lista_exibicao]
         try:
             indices = [int(num.strip()) - 1 for num in escolha_str.split(',')]
             return [lista_exibicao[i][1] for i in indices if 0 <= i < len(lista_exibicao)]
-        except (ValueError, IndexError):
-            print("Entrada inválida.")
+        except (ValueError, IndexError): print("Entrada inválida.")
 
 def main():
     parser = argparse.ArgumentParser(description="Gera dashboards de performance orçamentária por unidade.")
@@ -110,33 +101,21 @@ def main():
     CONFIG.paths.docs_dir.mkdir(parents=True, exist_ok=True)
     df_base_total = obter_dados_processados()
     if df_base_total is None or df_base_total.empty:
-        logger.error("A base de dados não pôde ser carregada. Encerrando.")
-        sys.exit(1)
+        logger.error("A base de dados não pôde ser carregada. Encerrando."); sys.exit(1)
         
     gerentes_info = carregar_gerentes_do_csv()
     if not gerentes_info:
-        logger.error("Arquivo de gerentes não pôde ser carregado. Encerrando.")
-        sys.exit(1)
+        logger.error("Arquivo de gerentes não pôde ser carregado. Encerrando."); sys.exit(1)
 
     unidades_antigas_disponiveis = df_base_total['UNIDADE_FINAL'].unique()
-    
-    unidades_map = {}
-    for nome_antigo in unidades_antigas_disponiveis:
-        nome_antigo_tratado = nome_antigo.replace("UNIDADE ", "").strip()
-        info = gerentes_info.get(nome_antigo_tratado.upper())
-        if info:
-            unidades_map[nome_antigo] = info
-        else:
-            unidades_map[nome_antigo] = {'nome_novo': nome_antigo_tratado}
+    unidades_map = { nome_antigo: gerentes_info.get(nome_antigo.upper(), {'nome_novo': nome_antigo.replace("UNIDADE ", "").strip()}) for nome_antigo in unidades_antigas_disponiveis }
 
     unidades_a_gerar_chaves = []
     if args.unidade:
         nome_novo_arg = args.unidade.upper()
         chave_encontrada = next((k for k, v in unidades_map.items() if v['nome_novo'].upper() == nome_novo_arg), None)
-        if chave_encontrada:
-            unidades_a_gerar_chaves = [chave_encontrada]
-        else:
-            logger.error(f"Unidade '{args.unidade}' não encontrada no mapeamento.")
+        if chave_encontrada: unidades_a_gerar_chaves = [chave_encontrada]
+        else: logger.error(f"Unidade '{args.unidade}' não encontrada no mapeamento.")
     elif args.todas:
         unidades_a_gerar_chaves = list(unidades_map.keys())
     else:
