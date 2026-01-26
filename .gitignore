@@ -1,16 +1,19 @@
-# Ambiente Virtual e Cache
+# Arquivos de ambiente virtual
 .venv/
+venv/
+
+# Cache e logs gerados pelo Python e pelo projeto
 __pycache__/
-*.pyc
-.wdm/
-cache_dados
-
-# Arquivos de Configuração e Logs
-.env
+cache/
 logs/
+*.log
 
-# Arquivos Gerados (Saídas)
+# Arquivos de configuração sensíveis (NUNCA versionar!)
+.env
 
-*.csv
-*.xlsx
-*.png
+# Arquivos gerados pelos relatórios (opcional, mas recomendado)
+docs/*.html
+docs/excel/
+
+# Outros arquivos de sistema
+.DS_Store

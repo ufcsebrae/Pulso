@@ -1,0 +1,10 @@
+{
+    "win64_chromedriver_144.0.7559.31_for_144.0.7559": {
+        "timestamp": "19/01/2026",
+        "binary_path": "C:\\Users\\cesargl\\_projetos\\PlanNatureza\\.wdm\\drivers\\chromedriver\\win64\\144.0.7559.31\\chromedriver-win32/chromedriver.exe"
+    },
+    "win64_chromedriver_144.0.7559.96_for_144.0.7559": {
+        "timestamp": "21/01/2026",
+        "binary_path": "C:\\Users\\cesargl\\_projetos\\PlanNatureza\\.wdm\\drivers\\chromedriver\\win64\\144.0.7559.96\\chromedriver-win32/chromedriver.exe"
+    }
+}
