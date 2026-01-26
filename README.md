@@ -14,36 +14,40 @@ Este projeto consiste em um conjunto de ferramentas e pipelines de dados em Pyth
 
 O projeto é organizado em uma arquitetura modular para garantir alta coesão, baixo acoplamento e facilidade de manutenção.
 
-.
-├── config/ # Módulos de configuração centralizada/
-│   ├── config.py # Classe principal de configuração (caminhos, conexões)
-│   ├── inicializacao.py # Carregamento de drivers externos (.dll)
-│   └── logger_config.py # Configuração do logger
-├── comunicacao/ # Módulos para entrada e saída de dados/
-│   ├── carregamento.py # Carrega DataFrames para o SQL Server
-│   └── enviar_relatorios.py# Gera e envia e-mails com os relatórios
-├── processamento/ # Lógica de transformação e regras de negócio/
-│   ├── correcao_chaves.py # Módulo de correção interativa de dados
-│   ├── enriquecimento.py # Lógica de junção (merge) dos dados
-│   ├── extracao.py # Extração de dados das fontes (SQL, OLAP) com cache
-│   └── validacao.py # Preparação e validação das chaves de junção
-├── visualizacao/ # Módulos para a camada de apresentação/
-│   ├── componentes_plotly.py # Funções que criam gráficos Plotly
-│   └── preparadores_dados.py # Prepara os dados para os gráficos (Chart.js, etc.)
-├── ├── templates/ # Templates HTML
-├── │ └── dashboard_template.html # Template base para os dashboards
-├── │
-├── ├── dados/ # Arquivos de mapeamento e dados auxiliares (CSVs)
-├── ├── docs/ # Onde os relatórios HTML e Excel são salvos
-├── ├── queries/ # Scripts SQL
-├── └── cache/ # Arquivos de cache (gerados automaticamente)
-├── │
-├── ├── main.py # Ponto de entrada: Pipeline de enriquecimento de dados
-├── ├── gerar_relatorio.py # Ponto de entrada: Geração dos dashboards HTML
-├── ├── enviar_relatorios.py # Ponto de entrada: Envio dos e-mails
-├── ├── requirements.txt # Dependências do projeto
-└── └── .env.example # Arquivo de exemplo para variáveis de ambiente
-
+```bash/
+├── config/ # Módulos de configuração centralizada
+│ ├── config.py # Classe principal de configuração (caminhos, conexões)
+│ ├── inicializacao.py # Carregamento de drivers externos (.dll)
+│ └── logger_config.py # Configuração do logger
+│
+├── comunicacao/ # Módulos para entrada e saída de dados
+│ ├── carregamento.py # Carrega DataFrames para o SQL Server
+│ └── enviar_relatorios.py# Gera e envia e-mails com os relatórios
+│
+├── processamento/ # Lógica de transformação e regras de negócio
+│ ├── correcao_chaves.py # Módulo de correção interativa de dados
+│ ├── enriquecimento.py # Lógica de junção (merge) dos dados
+│ ├── extracao.py # Extração de dados das fontes (SQL, OLAP) com cache
+│ └── validacao.py # Preparação e validação das chaves de junção
+│
+├── visualizacao/ # Módulos para a camada de apresentação
+│ ├── componentes_plotly.py # Funções que criam gráficos Plotly
+│ └── preparadores_dados.py # Prepara os dados para os gráficos (Chart.js, etc.)
+│
+├── templates/ # Templates HTML
+│ └── dashboard_template.html # Template base para os dashboards
+│
+├── dados/ # Arquivos de mapeamento e dados auxiliares (CSVs)
+├── docs/ # Onde os relatórios HTML e Excel são salvos
+├── queries/ # Scripts SQL
+└── cache/ # Arquivos de cache (gerados automaticamente)
+│
+├── main.py # Ponto de entrada: Pipeline de enriquecimento de dados
+├── gerar_relatorio.py # Ponto de entrada: Geração dos dashboards HTML
+├── enviar_relatorios.py # Ponto de entrada: Envio dos e-mails
+├── requirements.txt # Dependências do projeto
+└── .env.example # Arquivo de exemplo para variáveis de ambiente
+```
 ## ⚙️ Configuração do Ambiente
 
 **Pré-requisitos:**
