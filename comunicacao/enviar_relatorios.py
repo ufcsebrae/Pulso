@@ -178,9 +178,9 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
                         
                         {screenshot_html_block}
 
-                        <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px;">
+                        <div style=" color: #334155; line-height: 1.6; max-width: 800px;">
                             <p style="margin-bottom: 16px; font-size: 16px;">
-                                O Dashboard interativo possui algumas nomenclaturas detalhadas abaixo:
+                                O Dashboard interativo possui algumas nomenclaturas que estão detalhadas abaixo:
                             </p>
 
                             <ul style="list-style: none; padding: 0; font-size: 15px;">
@@ -188,8 +188,8 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
                                 <li style="margin-bottom: 8px;"><strong>Projetos Compartilhados:</strong> São os projetos onde diversas unidades possuem orçamento (ex: segurança, limpeza, folha, etc).</li>
                                 <li style="margin-bottom: 8px;"><strong>Orçamento Ocioso:</strong> É o saldo remanescente do Planejado no LEME subtraído do valor gasto.</li>
                                 <li style="margin-bottom: 8px;"><strong>Execução Sem Planejamento:</strong> Natureza não planejada no LEME, mas que possui execução.</li>
-                                <li style="margin-bottom: 8px;"><strong>Visão Hierárquica (Sunburst):</strong> O círculo interno são os projetos e o externo as naturezas. Cores indicam % de execução (verde é melhor) e o tamanho representa o valor em R$.</li>
-                                <li style="margin-bottom: 8px;"><strong>Mapa de Performance (Heatmap):</strong> Explica qual natureza específica impacta na % de execução frente ao planejado.</li>
+                                <li style="margin-bottom: 8px;"><strong>Visão Hierárquica (Sunburst ou Rosca multinível):</strong> O círculo interno são os projetos e o externo as naturezas. Cores indicam % de execução (verde é melhor) e o tamanho representa o valor em R$.</li>
+                                <li style="margin-bottom: 8px;"><strong>Mapa de Performance (Heatmap ou Mapa de calor):</strong> Explica qual natureza específica impacta na % de execução frente ao planejado.</li>
                                 <li style="margin-bottom: 16px;"><strong>Inércia:</strong> Tempo que cada natureza demorou para ter o primeiro gasto, indicando gargalos operacionais.</li>
                             </ul>
 
