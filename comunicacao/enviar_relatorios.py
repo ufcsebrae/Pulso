@@ -178,17 +178,25 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
                         
                         {screenshot_html_block}
 
-                        <p style="margin: 32px 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">O Dashboard interativo possui algumas nomenclaturas estão detalhadas abaixo:.</p>
-                        <p style="margin: 32px 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">Projetos Exclusivos: São os projetos onde as ações são todas da sua unidade.</p>
-                        <p style="margin: 32px 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">Projetos Compartilhado: São os projetos onde diversas unidades possuem orçamento. (ex: Contratos de segurança, limpeza, folha e etc).</p>
-                        <p style="margin: 32px 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">Orçamento Ocioso: É o saldo remanescente do Planejado no LEME subtraido do valor gasto.</p>
-                        <p style="margin: 32px 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">Execução Sem Planejamento: Natureza não planejada no LEME, mas possui execução.</p>
-                        <p style="margin: 32px 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">Visão Hierárquica do Orçamento (Sunburst): o circulo interno são os projetos, o externo as naturezas. As cores mostram a % de execução frente o planejado (quanto mais verde melhor), o tamanho dos discos são os valores em R$.</p>
-                        <p style="margin: 32px 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">Mapa de Performance (Heatmap): explica o porquê, qual natureza específica traz a % de execução frente o planejado.</p>
-                        <p style="margin: 32px 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">Inércia: maior tempo que cada natureza orçamentária demorou para ter seu primeiro gasto após o planejamento, indicando os principais gargalos operacionais.</p>
-                        <p style="margin: 32px 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">Este ecossistema de dados foi desenhado para que a informação não fique retida, mas sim circule, servindo de suporte estratégico para o alcance das nossas metas.</p>
-                        <p style="margin: 0; font-size: 16px; color: #334155; line-height: 1.75;">Seguimos à disposição para apoiar na leitura técnica desses indicadores.</p>
+                        <div style="font-family: sans-serif; color: #334155; line-height: 1.6; max-width: 800px;">
+                            <p style="margin-bottom: 16px; font-size: 16px;">
+                                O Dashboard interativo possui algumas nomenclaturas detalhadas abaixo:
+                            </p>
 
+                            <ul style="list-style: none; padding: 0; font-size: 15px;">
+                                <li style="margin-bottom: 8px;"><strong>Projetos Exclusivos:</strong> São os projetos onde as ações são todas da sua unidade.</li>
+                                <li style="margin-bottom: 8px;"><strong>Projetos Compartilhados:</strong> São os projetos onde diversas unidades possuem orçamento (ex: segurança, limpeza, folha, etc).</li>
+                                <li style="margin-bottom: 8px;"><strong>Orçamento Ocioso:</strong> É o saldo remanescente do Planejado no LEME subtraído do valor gasto.</li>
+                                <li style="margin-bottom: 8px;"><strong>Execução Sem Planejamento:</strong> Natureza não planejada no LEME, mas que possui execução.</li>
+                                <li style="margin-bottom: 8px;"><strong>Visão Hierárquica (Sunburst):</strong> O círculo interno são os projetos e o externo as naturezas. Cores indicam % de execução (verde é melhor) e o tamanho representa o valor em R$.</li>
+                                <li style="margin-bottom: 8px;"><strong>Mapa de Performance (Heatmap):</strong> Explica qual natureza específica impacta na % de execução frente ao planejado.</li>
+                                <li style="margin-bottom: 16px;"><strong>Inércia:</strong> Tempo que cada natureza demorou para ter o primeiro gasto, indicando gargalos operacionais.</li>
+                            </ul>
+
+                            <p style="margin-top: 20px; font-size: 15px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                                Este ecossistema de dados foi desenhado para que a informação circule, servindo de suporte estratégico. Seguimos à disposição para apoio técnico.
+                            </p>
+                        </div>
                         <p style="margin: 40px 0 0 0; font-size: 16px; color: #475569;">Atenciosamente,<br><b style="color: #1e293b;">Equipe Contabilidade/Orçamento</b></p>
                     </td></tr>
                 </table>
