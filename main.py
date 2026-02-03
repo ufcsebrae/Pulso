@@ -7,7 +7,6 @@ import pandas as pd
 # 1. INICIALIZAÇÃO CRÍTICA
 try:
     from config.logger_config import configurar_logger
-    # Passa o nome do arquivo de log específico para esta pipeline
     configurar_logger("pipeline_principal.log")
     
     from config.inicializacao import carregar_drivers_externos
@@ -19,7 +18,8 @@ except (ImportError, FileNotFoundError, Exception) as e:
 
 
 from config.config import CONFIG
-from comunicacao.carregamento import carregar_dataframe_para_sql
+# --- ALTERAÇÃO 1: Importar a nova função ---
+from comunicacao.carregamento import carregar_dataframe_para_sql_sem_duplicados
 from config.database import get_conexao
 from processamento.extracao import obter_dados_brutos
 from processamento.correcao_chaves import iniciar_correcao_interativa_chaves
@@ -95,11 +95,19 @@ def run_pipeline(args: argparse.Namespace) -> None:
         'Descricao_Natureza_Orcamentaria', 'DTUNIDADE', 'DTPROJETO', 'DTACAO'
     ]
     
-    # Garante que apenas colunas existentes sejam selecionadas para evitar KeyErrors
     colunas_presentes = [col for col in colunas_finais_ordenadas if col in df_enriquecido.columns]
-    df_para_salvar = df_enriquecido[colunas_presentes]
+    df_para_salvar = df_enriquecido[colunas_presentes].copy()
+    
+    # Remove linhas onde a chave principal é nula, pois não podem ser comparadas
+    df_para_salvar.dropna(subset=['CODCCUSTO'], inplace=True)
 
-    carregar_dataframe_para_sql(df_para_salvar, NOME_TABELA_FINAL, engine_financa)
+    # --- ALTERAÇÃO 2: Chamar a nova função passando a chave primária ---
+    carregar_dataframe_para_sql_sem_duplicados(
+        df=df_para_salvar,
+        nome_tabela=NOME_TABELA_FINAL,
+        engine=engine_financa,
+        chave_primaria=['CODCCUSTO']
+    )
     
     logger.info(
         "SUCESSO! A tabela '%s' foi salva no banco de dados '%s'.",
