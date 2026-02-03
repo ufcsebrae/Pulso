@@ -1,145 +1,59 @@
 # processamento/correcao_chaves.py
 import logging
-from typing import Dict, Set, Optional
 import pandas as pd
-
-# Importa a função de salvar para uso incremental
-from .validacao import salvar_mapa_correcoes, carregar_mapa_correcoes
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
-def _encontrar_melhor_sugestao_por_ano(
-    projeto: str, acao: str, unidade: str, df_referencia: pd.DataFrame
-) -> Optional[str]:
+def salvar_correcao_no_sql(chave_quebrada: str, chave_correta: str):
     """
-    Busca uma correspondência de Projeto/Ação/Unidade e retorna a chave com o
-    ano mais recente disponível.
-
-    A lógica agora é flexível e ignora diferenças de prefixo "SP - " na UNIDADE.
+    Salva (ou atualiza) uma única correção na tabela MapaCorrecoesChaves do SQL Server.
     """
-    projeto_lower = projeto.lower()
-    acao_lower = acao.lower()
-    unidade_lower = unidade.lower()
-
-    ref_unidade_lower = df_referencia['UNIDADE'].str.lower()
-
-    # *** LÓGICA DE COMPARAÇÃO FLEXÍVEL PARA A UNIDADE ***
-    mask_unidade = (
-        (ref_unidade_lower == unidade_lower) |                      # Correspondência exata
-        (ref_unidade_lower == 'sp - ' + unidade_lower) |       # Referência tem o prefixo
-        ('sp - ' + ref_unidade_lower == unidade_lower)        # Orçado tem o prefixo
-    )
-
-    mask_final = (
-        (df_referencia['PROJETO'].str.lower() == projeto_lower) &
-        (df_referencia['ACAO'].str.lower() == acao_lower) &
-        mask_unidade
-    )
+    from config.database import get_conexao
+    from config.config import CONFIG
     
-    candidatos = df_referencia[mask_final]
+    engine = get_conexao(CONFIG.conexoes["FINANCA_SQL"])
 
-    if not candidatos.empty:
-        # Encontra a linha com o ano mais recente entre os candidatos
-        sugestao_ideal = candidatos.loc[candidatos['ANO'].idxmax()]
-        return sugestao_ideal['CHAVE_CONCAT']
+    stmt = text("""
+        MERGE dbo.MapaCorrecoesChaves AS target
+        USING (SELECT :quebrada AS ChaveQuebrada, :correta AS ChaveCorreta) AS source
+        ON (target.ChaveQuebrada = source.ChaveQuebrada)
+        WHEN MATCHED THEN
+            UPDATE SET ChaveCorreta = source.ChaveCorreta, DataCriacao = GETDATE()
+        WHEN NOT MATCHED THEN
+            INSERT (ChaveQuebrada, ChaveCorreta) VALUES (source.ChaveQuebrada, source.ChaveCorreta);
+    """)
     
-    return None
+    try:
+        with engine.begin() as connection:
+            connection.execute(stmt, {"quebrada": chave_quebrada, "correta": chave_correta})
+        logger.info(f"Correção para '{chave_quebrada}' salva no SQL Server.")
+    except Exception:
+        logger.exception("Falha ao salvar correção no SQL Server.")
 
-def iniciar_correcao_interativa_chaves(
-    chaves_com_falha: Set[str],
-    df_referencia: pd.DataFrame
-):
+def iniciar_correcao_interativa_chaves(chaves_com_falha: set, df_referencia: pd.DataFrame):
     """
-    Inicia um fluxo de correção interativo que salva cada decisão
-    imediatamente no mapa de correções.
+    Inicia o modo interativo para corrigir chaves não encontradas, salvando no SQL.
     """
-    logger.info("Iniciando correção interativa para %d chaves...", len(chaves_com_falha))
+    logger.info("--- MODO DE CORREÇÃO INTERATIVA ---")
+    chaves_referencia_validas = set(df_referencia['CHAVE_CONCAT'])
     
-    mapa_atual = carregar_mapa_correcoes()
-    chaves_a_validar = sorted(list(chaves_com_falha))
-
-    for i, chave_incorreta in enumerate(chaves_a_validar, 1):
-        if chave_incorreta in mapa_atual:
-            continue
-
-        print("\n" + "="*100)
-        print(f"[CORREÇÃO {i}/{len(chaves_a_validar)}]")
-        print(f"  > Chave não encontrada: {chave_incorreta}")
-
-        try:
-            partes = chave_incorreta.split('|')
-            projeto, acao, unidade, _ = partes
-        except (IndexError, ValueError):
-            logger.error("Formato inválido para a chave '%s'. Pulando para busca manual.", chave_incorreta)
-            _executar_busca_manual(chave_incorreta, df_referencia, mapa_atual)
-            continue
-
-        # 1. Tenta encontrar a sugestão inteligente
-        melhor_sugestao = _encontrar_melhor_sugestao_por_ano(projeto, acao, unidade, df_referencia)
-
-        # 2. Apresenta a sugestão para confirmação rápida
-        if melhor_sugestao and melhor_sugestao != chave_incorreta:
-            print(f"  > SUGESTÃO: Chave correspondente encontrada com potencial ajuste de prefixo/ano.")
-            print(f"    DE: {chave_incorreta}")
-            print(f"  PARA: {melhor_sugestao}")
-            
-            resposta = input("  > Aceitar (s), buscar manualmente (p) ou ignorar (enter)? [s/p/enter]: ").lower().strip()
-
-            if resposta == 's':
-                mapa_atual[chave_incorreta] = melhor_sugestao
-                salvar_mapa_correcoes(mapa_atual)
-                logger.info("Correção salva. Continuando...")
-                continue
-            elif resposta == 'p':
-                _executar_busca_manual(chave_incorreta, df_referencia, mapa_atual)
-                continue
-            else:
-                logger.warning("Chave '%s' ignorada nesta sessão.", chave_incorreta)
-                continue
+    for i, chave_errada in enumerate(chaves_com_falha):
+        print(f"\n[{i+1}/{len(chaves_com_falha)}] Chave com erro: {chave_errada}")
         
-        # 3. Fallback para a busca manual se não houver sugestão
-        print("  > Nenhuma sugestão automática encontrada.")
-        _executar_busca_manual(chave_incorreta, df_referencia, mapa_atual)
-
-    logger.info("Processo de correção interativa concluído.")
-
-
-def _executar_busca_manual(chave_incorreta: str, df_referencia: pd.DataFrame, mapa_atual: Dict):
-    """Função auxiliar para o fluxo de busca manual que salva incrementalmente."""
-    while True:
-        termo_pesquisa = input("  > Pesquise por um termo (ou enter para ignorar): ").strip()
-        if not termo_pesquisa:
-            logger.warning("Busca manual para '%s' ignorada.", chave_incorreta)
-            break
-
-        mask = (
-            df_referencia['PROJETO'].str.contains(termo_pesquisa, case=False, na=False) |
-            df_referencia['ACAO'].str.contains(termo_pesquisa, case=False, na=False)
-        )
-        resultados = df_referencia[mask]['CHAVE_CONCAT'].unique().tolist()
-
-        if not resultados:
-            print(f"  > Nenhum resultado encontrado para '{termo_pesquisa}'. Tente novamente.")
-            continue
-
-        print(f"\n--- Opções encontradas para '{termo_pesquisa}' ---")
-        resultados_ordenados = sorted(resultados)
-        for idx, chave_resultado in enumerate(resultados_ordenados, 1):
-            print(f"    {idx}) {chave_resultado}")
-        
-        try:
-            num_escolha_str = input(f"  > Escolha o número (1-{len(resultados)}) ou 0 para nova busca: ")
-            num_escolha = int(num_escolha_str)
+        while True:
+            nova_chave = input("Digite a chave correta (ou 'p' para pular, 's' para sair): ").strip()
             
-            if 1 <= num_escolha <= len(resultados):
-                escolha_final = resultados_ordenados[num_escolha - 1]
-                mapa_atual[chave_incorreta] = escolha_final
-                salvar_mapa_correcoes(mapa_atual)
-                logger.info("Correção manual salva. Continuando...")
+            if nova_chave.lower() == 's':
+                logger.info("Saindo do modo interativo.")
+                return
+            if nova_chave.lower() == 'p':
+                logger.warning(f"Chave '{chave_errada}' pulada.")
                 break
-            elif num_escolha == 0:
-                continue
+                
+            if nova_chave in chaves_referencia_validas:
+                salvar_correcao_no_sql(chave_errada, nova_chave)
+                print(">>> Correção válida e salva no banco de dados!")
+                break
             else:
-                print("  Número fora do intervalo.")
-        except (ValueError, IndexError):
-            print("  Entrada inválida.")
+                print("!!! Erro: A chave digitada não existe na tabela de referência. Tente novamente.")
