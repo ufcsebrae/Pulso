@@ -23,7 +23,7 @@ def run_one_time_migration():
     # Coloque o caminho exato para o arquivo que contém suas correções.
     # Geralmente é algo como 'cache/mapa_correcoes.json'
     # Se você não o moveu, ele pode estar na raiz ou em uma pasta 'cache'.
-    CAMINHO_ARQUIVO_CACHE = "cache/mapa_correcoes.json" # <<< CONFIRME ESTE CAMINHO
+    CAMINHO_ARQUIVO_CACHE = "dados/mapa_correcoes.json" # <<< CONFIRME ESTE CAMINHO
     
     try:
         with open(CAMINHO_ARQUIVO_CACHE, 'r', encoding='utf-8') as f:
