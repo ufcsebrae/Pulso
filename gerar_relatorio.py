@@ -1,4 +1,4 @@
-# gerar_relatorio.py (VERSÃO FINAL COM CORREÇÃO NO 'to_excel')
+# gerar_relatorio.py (VERSÃO FINAL COM CORREÇÃO DE NOME DE ARQUIVO)
 import argparse
 import logging
 import sys
@@ -79,8 +79,8 @@ def gerar_relatorio_para_unidade(unidade_antiga: str, unidade_nova: str, df_base
                 df_fornecedores['VALOR'] = df_fornecedores['VALOR'].apply(formatar_brl)
                 html_visuais_adicionais += criar_tabela_html(df_fornecedores, "Top 20 Fornecedores (Projetos Exclusivos)")
                 
-                # --- CORREÇÃO APLICADA AQUI ---
-                path_fato_v2 = CONFIG.paths.relatorios_excel_dir / f"correlacao_fornecedores_{output_sanitized_name}.xlsx"
+                # --- CORREÇÃO DO NOME DO ARQUIVO ---
+                path_fato_v2 = CONFIG.paths.relatorios_excel_dir / f"correlacao_fatofechamento_v2_{output_sanitized_name}.xlsx"
                 df_fato_v2.to_excel(path_fato_v2, index=False)
                 logger.info(f"Arquivo de correlação de fornecedores salvo em: {path_fato_v2}")
             else:
@@ -89,7 +89,6 @@ def gerar_relatorio_para_unidade(unidade_antiga: str, unidade_nova: str, df_base
             df_comprometido = obter_dados_correlacao("comprometido.sql", centros_de_custo=todos_os_cc_da_unidade, truncate_cc_keys=True)
             df_comprometido_visual = df_comprometido.copy() if df_comprometido is not None else pd.DataFrame()
             if not df_comprometido_visual.empty:
-                # --- CORREÇÃO APLICADA AQUI ---
                 path_comprometido = CONFIG.paths.relatorios_excel_dir / f"correlacao_comprometido_{output_sanitized_name}.xlsx"
                 df_comprometido.to_excel(path_comprometido, index=False)
                 logger.info(f"Arquivo de correlação do comprometido salvo em: {path_comprometido}")
@@ -97,7 +96,7 @@ def gerar_relatorio_para_unidade(unidade_antiga: str, unidade_nova: str, df_base
                 for col in ['ValorPlanejado', 'ValorComprometido', 'ValorRealizado', 'SALDO']:
                     if col in df_comprometido_visual.columns:
                         df_comprometido_visual[col] = pd.to_numeric(df_comprometido_visual[col], errors='coerce').apply(formatar_brl)
-            html_visuais_adicionais += criar_tabela_html(df_comprometido_visual, "Centros de Custos EXCLUSIVOS com Orçamento Comprometido")
+            html_visuais_adicionais += criar_tabela_html(df_comprometido_visual, "Dados de Correlação: Comprometido")
 
     try:
         template_path = CONFIG.paths.templates_dir / "dashboard_template.html"
@@ -113,8 +112,8 @@ def gerar_relatorio_para_unidade(unidade_antiga: str, unidade_nova: str, df_base
             bloco_adicional_html = f'''
         <div class="grid grid-cols-1 gap-8 mb-10">
             <div class="card">
-                <h2 class="text-xl font-bold text-gray-800 mb-2">Maiores Fornecedores - Específico da Unidade</h2>
-                <p class="text-sm text-gray-500 mb-4">As visualizações abaixo são geradas apenas para os projetos EXCLUSIVOS da Unidade.</p>
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Análise de Correlação (Específico da Unidade)</h2>
+                <p class="text-sm text-gray-500 mb-4">As visualizações abaixo são geradas apenas para a unidade ATENDIMENTO AO CLIENTE.</p>
                 {html_visuais_adicionais}
             </div>
         </div>

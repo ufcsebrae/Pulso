@@ -1,4 +1,4 @@
-# comunicacao/enviar_relatorios.py (VERSÃO ATUALIZADA)
+# comunicacao/enviar_relatorios.py (VERSÃO FINAL COM CORPO DO E-MAIL CORRETO)
 import logging
 import sys
 import os
@@ -18,6 +18,8 @@ except ImportError:
     logging.basicConfig(level=logging.INFO)
     logging.critical("Erro: Arquivos essenciais de 'processamento' ou 'config' não foram encontrados.")
     sys.exit(1)
+
+logger = logging.getLogger(__name__)
 
 def carregar_gerentes_do_csv() -> dict:
     caminho_csv = CONFIG.paths.gerentes_csv
@@ -43,7 +45,6 @@ def carregar_gerentes_do_csv() -> dict:
         logger.exception(f"Falha ao processar o arquivo CSV de gerentes: {e}")
         return {}
 
-logger = logging.getLogger(__name__)
 
 def capturar_screenshot_relatorio(html_path: Path) -> Path | None:
     if not html_path.exists():
@@ -71,6 +72,7 @@ def capturar_screenshot_relatorio(html_path: Path) -> Path | None:
         logger.error(f"Falha ao capturar screenshot para '{html_path.name}': {e}", exc_info=True)
         return None
 
+
 def enviar_via_outlook(destinatario: str, cc: str, assunto: str, corpo_html: str, anexos: list[Path] | None = None):
     try:
         outlook = win32.Dispatch('outlook.application')
@@ -79,21 +81,31 @@ def enviar_via_outlook(destinatario: str, cc: str, assunto: str, corpo_html: str
         if cc:
             mail.CC = cc
         mail.Subject = assunto
+        
+        # Injeção do CID para o screenshot antes de definir o corpo do HTML
         if anexos:
             for anexo_path in anexos:
-                if anexo_path and anexo_path.exists():
+                if anexo_path and anexo_path.exists() and anexo_path.suffix.lower() == '.png':
                     attachment = mail.Attachments.Add(str(anexo_path.resolve()))
-                    if anexo_path.suffix.lower() == '.png':
-                        cid = "dashboard_preview"
-                        attachment.PropertyAccessor.SetProperty("http://schemas.microsoft.com/mapi/proptag/0x3712001F", cid)
-                        corpo_html = corpo_html.replace('cid:screenshot_placeholder', f'cid:{cid}')
+                    cid = "dashboard_preview"
+                    attachment.PropertyAccessor.SetProperty("http://schemas.microsoft.com/mapi/proptag/0x3712001F", cid)
+                    corpo_html = corpo_html.replace('cid:screenshot_placeholder', f'cid:{cid}')
+        
         mail.HTMLBody = corpo_html
+
+        # Adiciona os outros anexos
+        if anexos:
+            for anexo_path in anexos:
+                if anexo_path and anexo_path.exists() and anexo_path.suffix.lower() != '.png':
+                    mail.Attachments.Add(str(anexo_path.resolve()))
+        
         mail.Display()
         logger.info(f"E-mail para {destinatario} (CC: {cc or 'Nenhum'}) criado para revisão.")
         return True
     except Exception as e:
         logger.exception(f"Falha ao criar e-mail no Outlook para {destinatario}.")
         return False
+
 
 def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info: dict, df_base_total: pd.DataFrame):
     info_gerente = gerentes_info[unidade_antiga_nome.upper()]
@@ -110,24 +122,17 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
 
     dashboard_url = f"{os.getenv('GITHUB_PAGES_URL', 'https://ufcsebrae.github.io/PlanNatureza/')}{nome_arquivo_html}"
     
-    df_unidade = df_base_total[df_base_total['UNIDADE_FINAL'] == unidade_antiga_nome].copy()
-    if df_unidade.empty:
-        logger.warning(f"Sem dados para a unidade '{unidade_antiga_nome}'. Pulando.")
-        return
+    anexos_para_enviar = []
 
+    # 1. Anexo principal de dados analíticos
     excel_filename = f"dados_analiticos_{nome_arquivo_sanitizado}.xlsx"
-    excel_path = CONFIG.paths.relatorios_excel_dir / excel_filename 
-    logger.info(f"Gerando arquivo Excel em '{excel_path}'...")
-    try:
-        df_para_excel = df_unidade.drop(columns=['Descricao_Natureza_Orcamentaria'], errors='ignore')
-        df_para_excel.to_excel(excel_path, index=False, sheet_name="Dados_Detalhados")
-        logger.info(f"Arquivo Excel '{excel_filename}' gerado na pasta 'docs/excel'.")
-    except Exception as e:
-        logger.error(f"Falha ao gerar arquivo Excel para '{unidade_nova_nome}': {e}")
-        return
+    excel_path = CONFIG.paths.relatorios_excel_dir / excel_filename
+    if excel_path.exists():
+        anexos_para_enviar.append(excel_path)
+    else:
+        logger.warning(f"Arquivo de dados analíticos não encontrado: {excel_path.name}")
 
-    # --- LÓGICA DE ANEXOS ATUALIZADA ---
-    anexos_para_enviar = [excel_path]
+    # 2. Anexos de correlação (APENAS para a unidade especial)
     if unidade_nova_nome.upper() == "ATENDIMENTO AO CLIENTE":
         logger.info(f"Verificando anexos de correlação para a unidade '{unidade_nova_nome}'.")
         
@@ -145,9 +150,8 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
         else:
             logger.warning(f"Anexo de correlação esperado não encontrado: {path_comprometido.name}")
 
+    # 3. Screenshot
     screenshot_path = capturar_screenshot_relatorio(html_path)
-    
-    # Restante do corpo do e-mail e envio (inalterado)
     if screenshot_path:
         anexos_para_enviar.append(screenshot_path)
         screenshot_html_block = f'''
@@ -164,13 +168,68 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
     tratamento = info_gerente.get('tratamento', 'Prezado(a)')
     nome_gerente = info_gerente.get('gerente', 'Gestor(a)')
 
+    # --- CORPO DO E-MAIL RESTAURADO ---
     corpo_email = f"""
-    {...} # O corpo do e-mail permanece o mesmo
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head><meta charset="UTF-8"></head>
+    <body style="margin: 0; padding: 0; width: 100%; background-color: #f8fafc; font-family: Calibri, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #f8fafc;">
+            <tr><td align="center" style="padding: 40px 20px;">
+                <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="max-width: 680px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);">
+                    <tr><td style="padding: 32px;">
+                        <p style="margin: 0 0 24px 0; font-size: 18px; font-weight: 600; color: #0f172a;">{tratamento} {nome_gerente} e equipe,</p>
+                        <p style="margin: 0 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">Com a conclusão do fechamento orçamentário de 2025, <b>disponibilizamos os dados finais da execução orçamentária de 2025 da sua unidade</b></p>
+                        <p style="margin: 0 0 24px 0; font-size: 16px; color: #334155; line-height: 1.75;">Nosso objetivo é democratizar o acesso à informação para apoiar sua gestão. O acompanhamento está disponível em duas frentes:</p>
+                        
+                        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 16px;">
+                            <p style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #1e293b;">1. Painel Interativo (Dashboard)</p>
+                            <p style="margin: 0; font-size: 15px; color: #475569; line-height: 1.7;">Visão tática para análise rápida de tendências e desvios.</p>
+                        </div>
+                        
+                        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                            <p style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #1e293b;">2. Base Analítica:</p>
+                            <p style="margin: 0; font-size: 15px; color: #475569; line-height: 1.7;">Arquivo em Excel (anexo) com o detalhamento completo para conferência e filtros personalizados.</p>
+                        </div>
+
+                        <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation">
+                            <tr><td align="center" style="padding: 12px 0;">
+                                <a href="{dashboard_url}" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
+                                    👉 Acessar Painel Interativo
+                                </a>
+                            </td></tr>
+                        </table>
+                        
+                        {screenshot_html_block}
+
+                        <div style=" color: #334155; line-height: 1.6; max-width: 800px;">
+                            <p style="margin-bottom: 16px; font-size: 16px;">
+                                O Dashboard interativo possui algumas nomenclaturas que estão detalhadas abaixo:
+                            </p>
+
+                            <ul style="list-style: none; padding: 0; font-size: 15px;">
+                                <li style="margin-bottom: 8px;"><strong>Projetos Exclusivos:</strong> São os projetos onde as ações são todas da sua unidade.</li>
+                                <li style="margin-bottom: 8px;"><strong>Projetos Compartilhados:</strong> São os projetos onde diversas unidades possuem orçamento (ex: segurança, limpeza, folha, etc).</li>
+                                <li style="margin-bottom: 8px;"><strong>Orçamento Ocioso:</strong> É o saldo remanescente do Planejado no LEME subtraído do valor gasto.</li>
+                                <li style="margin-bottom: 8px;"><strong>Execução Sem Planejamento:</strong> Natureza não planejada no LEME, mas que possui execução.</li>
+                                <li style="margin-bottom: 8px;"><strong>Visão Hierárquica (Sunburst ou Rosca multinível):</strong> O círculo interno são os projetos e o externo as naturezas. Cores indicam % de execução (verde é melhor) e o tamanho representa o valor em R$.</li>
+                                <li style="margin-bottom: 8px;"><strong>Mapa de Performance (Heatmap ou Mapa de calor):</strong> Explica qual natureza específica impacta na % de execução frente ao planejado.</li>
+                                <li style="margin-bottom: 16px;"><strong>Inércia:</strong> Tempo que cada natureza demorou para ter o primeiro gasto, indicando gargalos operacionais.</li>
+                            </ul>
+
+                            <p style="margin-top: 20px; font-size: 15px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                                Este ecossistema de dados foi desenhado para que a informação circule, servindo de suporte estratégico. Seguimos à disposição para apoio técnico.
+                            </p>
+                        </div>
+                        <p style="margin: 40px 0 0 0; font-size: 16px; color: #475569;">Atenciosamente,<br><b style="color: #1e293b;">Equipe Contabilidade/Orçamento</b></p>
+                    </td></tr>
+                </table>
+            </td></tr>
+        </table>
+    </body>
+    </html>
     """
-    
-    # O corpo do e-mail é grande e não foi alterado, então foi omitido aqui para clareza.
-    # A lógica abaixo usa a lista `anexos_para_enviar` que foi modificada.
-    
+
     try:
         enviar_via_outlook(
             destinatario=info_gerente['email'],
@@ -184,18 +243,21 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
             os.remove(screenshot_path)
             logger.info(f"Screenshot temporário '{screenshot_path.name}' removido.")
 
+
 def main():
-    # (O resto do arquivo permanece inalterado)
     parser = argparse.ArgumentParser(description="Envia relatórios de performance orçamentária por e-mail.")
     parser.add_argument("--enviar-todos", action="store_true", help="Envia e-mails para todas as unidades elegíveis sem interação manual.")
     args = parser.parse_args()
 
     logger.info("Carregando base de dados e arquivo de gerentes...")
     df_base_total = obter_dados_processados()
-    gerentes_info = carregar_gerentes_do_csv()
-
-    if df_base_total is None or df_base_total.empty or not gerentes_info:
+    if df_base_total is None or df_base_total.empty:
         logger.error("Base de dados ou arquivo de gerentes não pôde ser carregado. Encerrando.")
+        sys.exit(1)
+        
+    gerentes_info = carregar_gerentes_do_csv()
+    if not gerentes_info:
+        logger.error("Arquivo de gerentes não pôde ser carregado. Encerrando.")
         sys.exit(1)
         
     CONFIG.paths.relatorios_excel_dir.mkdir(parents=True, exist_ok=True)
