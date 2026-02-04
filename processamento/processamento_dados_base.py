@@ -1,10 +1,8 @@
-# processamento_dados_base.py
+# processamento/processamento_dados_base.py (VERSÃO MAIS ROBUSTA)
 import logging
 import os
 import sys
-from pathlib import Path
 import pandas as pd
-import numpy as np
 
 try:
     from config.logger_config import configurar_logger
@@ -36,7 +34,8 @@ def carregar_mapas_padronizacao() -> tuple[dict, dict]:
     logger.info("Carregando arquivos de mapeamento para padronização...")
     mapa_unidade, mapa_natureza = {}, {}
     try:
-        unidade_csv_path = CONFIG.paths.unidade_csv 
+        # Carregamento do mapa de unidades (sem alteração)
+        unidade_csv_path = CONFIG.paths.unidade_csv
         if unidade_csv_path.exists():
             df_unidade = pd.read_csv(unidade_csv_path, sep=';', encoding='utf-8-sig', on_bad_lines='warn')
             df_unidade['nm_unidade_padronizada_std'] = df_unidade['nm_unidade_padronizada'].astype(str).str.strip().str.upper()
@@ -45,36 +44,52 @@ def carregar_mapas_padronizacao() -> tuple[dict, dict]:
         else:
             logger.warning("Arquivo 'UNIDADE.CSV' não encontrado.")
 
-        natureza_csv_path = CONFIG.paths.natureza_csv 
+        # --- LÓGICA DE CARREGAMENTO DO MAPA DE NATUREZAS TORNADA MAIS ROBUSTA ---
+        natureza_csv_path = CONFIG.paths.natureza_csv
         if natureza_csv_path.exists():
             df_natureza = pd.read_csv(natureza_csv_path, sep=';', encoding='utf-8-sig', on_bad_lines='warn')
+
+            # 1. Validação explícita das colunas obrigatórias
+            required_cols = ['Descricao_Natureza_Orcamentaria', 'Descricao_Natureza_Orcamentaria_FINAL']
+            if not all(col in df_natureza.columns for col in required_cols):
+                missing_cols = [col for col in required_cols if col not in df_natureza.columns]
+                raise KeyError(f"O arquivo 'NATUREZA.csv' não contém as colunas obrigatórias: {missing_cols}. Verifique os nomes das colunas no arquivo.")
+            
+            # Processamento continua se as colunas existirem
             df_natureza['Descricao_Natureza_Orcamentaria_std'] = df_natureza['Descricao_Natureza_Orcamentaria'].astype(str).str.strip().str.upper()
             df_natureza.drop_duplicates(subset=['Descricao_Natureza_Orcamentaria_std'], keep='last', inplace=True)
-            mapa_natureza = pd.Series(df_natureza['Descricao_Natureza_Orcamentaria_FINAL'].values, index=df_natureza['Descricao_Natureza_Orcamentaria_std']).to_dict()
+            
+            # Forma mais segura e idiomática de criar o dicionário de mapeamento
+            mapa_natureza = df_natureza.set_index('Descricao_Natureza_Orcamentaria_std')['Descricao_Natureza_Orcamentaria_FINAL'].to_dict()
+            
             logger.info("Mapa de naturezas carregado com %d regras.", len(mapa_natureza))
         else:
             logger.warning("Arquivo 'NATUREZA.csv' não encontrado.")
+            
     except Exception as e:
-        logger.error(f"Falha crítica ao carregar os mapas de padronização: {e}")
+        # 2. Log de erro melhorado para capturar o traceback completo
+        logger.exception("Falha crítica ao carregar os mapas de padronização.")
+        # Relança a exceção para interromper a execução, já que é um passo crítico
+        raise e
+        
     return mapa_unidade, mapa_natureza
 
 def obter_dados_processados() -> pd.DataFrame | None:
-    configurar_logger("processamento_base.log")
-    carregar_drivers_externos()
-    
-    # Carrega apenas o mapa de unidades, a natureza já vem tratada do banco.
-    mapa_unidade, _ = carregar_mapas_padronizacao()
-
+    # Esta função permanece com a lógica de chamar a função do banco de dados
     try:
+        configurar_logger("processamento_base.log")
+        carregar_drivers_externos()
+        
+        mapa_unidade, _ = carregar_mapas_padronizacao()
+
         engine_db = get_conexao(CONFIG.conexoes["FINANCA_SQL"])
         PPA_FILTRO = os.getenv("PPA_FILTRO", 'PPA 2025 - 2025/DEZ')
         ANO_FILTRO = int(os.getenv("ANO_FILTRO", 2025))
         
-        # A VIEW/Function agora retorna a coluna 'NATUREZA_FINAL' diretamente
         sql_query = "SELECT * FROM dbo.vw_Analise_Planejado_vs_Executado_v2(?, ?, ?)"
         params = (f'{ANO_FILTRO}-01-01', f'{ANO_FILTRO}-12-31', PPA_FILTRO)
         
-        logger.info("Carregando dados base da view (com natureza já padronizada)...")
+        logger.info("Carregando dados base via função 'dbo.vw_Analise_Planejado_vs_Executado_v2'...")
         df_base = pd.read_sql(sql_query, engine_db, params=params)
         logger.info("%d linhas carregadas.", len(df_base))
 
@@ -84,17 +99,12 @@ def obter_dados_processados() -> pd.DataFrame | None:
 
         logger.info("Iniciando padronização e categorização dos dados...")
         
-        # Padronização da UNIDADE continua sendo feita aqui
         df_base['nm_unidade_padronizada'] = df_base['UNIDADE'].astype(str).str.replace('SP - ', '', regex=False).str.strip().str.upper()
         df_base['UNIDADE_FINAL'] = df_base['nm_unidade_padronizada'].map(mapa_unidade).fillna(df_base['nm_unidade_padronizada'])
         
-        # A padronização da NATUREZA foi REMOVIDA, pois a coluna NATUREZA_FINAL já vem pronta do SQL
-        
-        # O groupby para 'tipo_projeto' continua igual
         unidades_por_projeto = df_base.groupby('PROJETO')['nm_unidade_padronizada'].nunique()
         df_base['tipo_projeto'] = df_base['PROJETO'].map(unidades_por_projeto).apply(lambda x: 'Compartilhado' if x > 1 else 'Exclusivo')
         
-        # Remove colunas intermediárias/originais para manter a base limpa
         colunas_para_remover = ['UNIDADE', 'nm_unidade_padronizada']
         df_base.drop(columns=[col for col in colunas_para_remover if col in df_base.columns], inplace=True)
         
