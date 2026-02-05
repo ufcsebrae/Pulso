@@ -164,7 +164,7 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
     else:
         screenshot_html_block = ""
 
-    assunto = f"📊 Fechamento 2025: Base de Dados e Dashboard - {unidade_nova_nome}"
+    assunto = f"📊 [pulso] - [fechamento 2025]: relatório despesas - {unidade_nova_nome}"
     tratamento = info_gerente.get('tratamento', 'Prezado(a)')
     nome_gerente = info_gerente.get('gerente', 'Gestor(a)')
 
@@ -178,7 +178,7 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
             <tr><td align="center" style="padding: 40px 20px;">
                 <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="max-width: 680px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);">
                     <tr><td style="padding: 32px;">
-                        <p style="margin: 0 0 24px 0; font-size: 18px; font-weight: 600; color: #0f172a;">{tratamento} {nome_gerente} e equipe,</p>
+                        <p style="margin: 0 0 24px 0; font-size: 18px; font-weight: 600; color: #0f172a;">{tratamento} {nome_gerente},</p>
                         <p style="margin: 0 0 16px 0; font-size: 16px; color: #334155; line-height: 1.75;">Com a conclusão do fechamento orçamentário de 2025, <b>disponibilizamos os dados finais da execução orçamentária de 2025 da sua unidade</b></p>
                         <p style="margin: 0 0 24px 0; font-size: 16px; color: #334155; line-height: 1.75;">Nosso objetivo é democratizar o acesso à informação para apoiar sua gestão. O acompanhamento está disponível em duas frentes:</p>
                         
