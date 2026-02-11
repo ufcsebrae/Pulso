@@ -1,4 +1,4 @@
-# gerar_relatorio.py (VERSÃO COMPLETA E FINAL)
+# gerar_relatorio.py (VERSÃO COMPLETA E GENERALIZADA)
 import argparse
 import logging
 import sys
@@ -44,18 +44,15 @@ def gerar_relatorio_para_unidade(unidade_antiga: str, unidade_nova: str, df_base
 
     output_sanitized_name = unidade_nova.replace(' ', '_').replace('/', '_')
 
-    # --- CRIAÇÃO DO ARQUIVO EXCEL ANALÍTICO PRINCIPAL ---
     excel_filename = f"dados_analiticos_{output_sanitized_name}.xlsx"
     excel_path = CONFIG.paths.relatorios_excel_dir / excel_filename
     try:
         logger.info(f"Gerando arquivo Excel principal em '{excel_path}'...")
-        # Garante que a base de dados da unidade seja usada
         df_unidade.to_excel(excel_path, index=False, sheet_name="Dados_Detalhados")
         logger.info(f"Arquivo Excel '{excel_filename}' gerado com sucesso.")
     except Exception as e:
         logger.exception(f"Falha ao gerar o arquivo Excel principal para '{unidade_nova}': {e}")
 
-    # Lógica de preparação de dados para o HTML
     df_exclusivos = df_unidade[df_unidade['tipo_projeto'] == 'Exclusivo'].copy()
     df_compartilhados = df_unidade[df_unidade['tipo_projeto'] == 'Compartilhado'].copy()
 
@@ -77,47 +74,47 @@ def gerar_relatorio_para_unidade(unidade_antiga: str, unidade_nova: str, df_base
     }
 
     html_visuais_adicionais = ""
-    if unidade_nova.upper() == "ATENDIMENTO AO CLIENTE":
-        logger.info(f"Unidade especial '{unidade_nova}' detectada. Gerando visuais e dados de correlação.")
-        
-        if 'CODCCUSTO' in df_unidade.columns and not df_unidade['CODCCUSTO'].dropna().empty:
-            cc_exclusivos = df_exclusivos['CODCCUSTO'].dropna().unique().tolist()
-            todos_os_cc_da_unidade = df_unidade['CODCCUSTO'].dropna().unique().tolist()
+    # --- A CONDIÇÃO IF FOI REMOVIDA DAQUI ---
+    # A lógica abaixo agora será executada para TODAS as unidades.
+    logger.info(f"Iniciando geração de visuais e dados de correlação para a unidade '{unidade_nova}'.")
+    
+    if 'CODCCUSTO' in df_unidade.columns and not df_unidade['CODCCUSTO'].dropna().empty:
+        cc_exclusivos = df_exclusivos['CODCCUSTO'].dropna().unique().tolist()
+        todos_os_cc_da_unidade = df_unidade['CODCCUSTO'].dropna().unique().tolist()
 
-            df_fato_v2 = obter_dados_correlacao("fatofechamento_v2.sql", centros_de_custo=cc_exclusivos)
-            if df_fato_v2 is not None and not df_fato_v2.empty:
-                df_fornecedores = df_fato_v2.groupby('FORNECEDOR')['VALOR'].sum().reset_index().sort_values(by='VALOR', ascending=False).head(20)
-                df_fornecedores['VALOR'] = df_fornecedores['VALOR'].apply(formatar_brl)
-                html_visuais_adicionais += criar_tabela_html(df_fornecedores, "Top 20 Fornecedores (Projetos Exclusivos)")
-                path_fato_v2 = CONFIG.paths.relatorios_excel_dir / f"correlacao_fatofechamento_v2_{output_sanitized_name}.xlsx"
-                df_fato_v2.to_excel(path_fato_v2, index=False)
-                logger.info(f"Arquivo de correlação de fornecedores salvo em: {path_fato_v2}")
+        df_fato_v2 = obter_dados_correlacao("fatofechamento_v2.sql", centros_de_custo=cc_exclusivos)
+        if df_fato_v2 is not None and not df_fato_v2.empty:
+            df_fornecedores = df_fato_v2.groupby('FORNECEDOR')['VALOR'].sum().reset_index().sort_values(by='VALOR', ascending=False).head(20)
+            df_fornecedores['VALOR'] = df_fornecedores['VALOR'].apply(formatar_brl)
+            html_visuais_adicionais += criar_tabela_html(df_fornecedores, "Top 20 Fornecedores (Projetos Exclusivos)")
+            path_fato_v2 = CONFIG.paths.relatorios_excel_dir / f"correlacao_fatofechamento_v2_{output_sanitized_name}.xlsx"
+            df_fato_v2.to_excel(path_fato_v2, index=False)
+            logger.info(f"Arquivo de correlação de fornecedores salvo em: {path_fato_v2}")
 
-            df_comprometido = obter_dados_correlacao("comprometido.sql", centros_de_custo=todos_os_cc_da_unidade, truncate_cc_keys=True)
-            if df_comprometido is not None and not df_comprometido.empty:
-                df_comprometido_visual = df_comprometido.copy()
-                path_comprometido = CONFIG.paths.relatorios_excel_dir / f"correlacao_comprometido_{output_sanitized_name}.xlsx"
-                df_comprometido.to_excel(path_comprometido, index=False)
-                logger.info(f"Arquivo de correlação do comprometido salvo em: {path_comprometido}")
-                for col in ['ValorPlanejado', 'ValorComprometido', 'ValorRealizado', 'SALDO']:
-                    if col in df_comprometido_visual.columns:
-                        df_comprometido_visual[col] = pd.to_numeric(df_comprometido_visual[col], errors='coerce').apply(formatar_brl)
-                html_visuais_adicionais += criar_tabela_html(df_comprometido_visual, "Dados de Correlação: Comprometido")
+        df_comprometido = obter_dados_correlacao("comprometido.sql", centros_de_custo=todos_os_cc_da_unidade, truncate_cc_keys=True)
+        if df_comprometido is not None and not df_comprometido.empty:
+            df_comprometido_visual = df_comprometido.copy()
+            path_comprometido = CONFIG.paths.relatorios_excel_dir / f"correlacao_comprometido_{output_sanitized_name}.xlsx"
+            df_comprometido.to_excel(path_comprometido, index=False)
+            logger.info(f"Arquivo de correlação do comprometido salvo em: {path_comprometido}")
+            for col in ['ValorPlanejado', 'ValorComprometido', 'ValorRealizado', 'SALDO']:
+                if col in df_comprometido_visual.columns:
+                    df_comprometido_visual[col] = pd.to_numeric(df_comprometido_visual[col], errors='coerce').apply(formatar_brl)
+            html_visuais_adicionais += criar_tabela_html(df_comprometido_visual, "Dados de Correlação: Comprometido")
 
     try:
         template_path = CONFIG.paths.templates_dir / "dashboard_template.html"
         final_html = template_path.read_text(encoding='utf-8')
 
         for key, value in {**kpi_dict, **placeholders_html}.items(): final_html = final_html.replace(key, str(value))
-        
         final_html = final_html.replace('<!--__JSON_DATA_PLACEHOLDER__-->', json.dumps(dados_graficos_json, indent=None, ensure_ascii=False))
         
         if html_visuais_adicionais:
             bloco_adicional_html = f'''
         <div class="grid grid-cols-1 gap-8 mb-10">
             <div class="card">
-                <h2 class="text-xl font-bold text-gray-800 mb-2">Análise de Correlação (Específico da Unidade)</h2>
-                <p class="text-sm text-gray-500 mb-4">As visualizações abaixo são geradas apenas para a unidade ATENDIMENTO AO CLIENTE.</p>
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Análise de Correlação (Dados Adicionais)</h2>
+                <p class="text-sm text-gray-500 mb-4">As visualizações abaixo correlacionam os centros de custo da unidade com dados de fornecedores e valores comprometidos.</p>
                 {html_visuais_adicionais}
             </div>
         </div>
@@ -154,12 +151,9 @@ def main():
     args = parser.parse_args()
 
     df_base_total = obter_dados_processados()
-    if df_base_total is None or df_base_total.empty:
-        logger.error("A base de dados não pôde ser carregada. Encerrando."); sys.exit(1)
-        
+    if df_base_total is None or df_base_total.empty: logger.error("A base de dados não pôde ser carregada. Encerrando."); sys.exit(1)
     gerentes_info = carregar_gerentes_do_csv()
-    if not gerentes_info:
-        logger.error("Arquivo de gerentes não pôde ser carregado. Encerrando."); sys.exit(1)
+    if not gerentes_info: logger.error("Arquivo de gerentes não pôde ser carregado. Encerrando."); sys.exit(1)
     
     CONFIG.paths.docs_dir.mkdir(parents=True, exist_ok=True)
     CONFIG.paths.relatorios_excel_dir.mkdir(parents=True, exist_ok=True)
