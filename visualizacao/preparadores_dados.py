@@ -1,4 +1,4 @@
-# visualizacao/preparadores_dados.py (VERSÃO FINAL E CORRIGIDA)
+# visualizacao/preparadores_dados.py (VERSÃO COMPLETA E CORRIGIDA)
 import pandas as pd
 from processamento.processamento_dados_base import formatar_brl
 from config.config import CORES
@@ -50,42 +50,61 @@ def preparar_dados_treemap(df_source: pd.DataFrame) -> dict:
         'projetos': df_natureza_sum['NATUREZA_FINAL'].map(projetos_por_natureza).fillna('').tolist()
     }
 
+# --- FUNÇÃO COMPLETAMENTE REESCRITA ---
 def preparar_dados_orcamento_ocioso(df_unidade: pd.DataFrame) -> dict:
-    """Prepara os dados para o gráfico de orçamento ocioso (Chart.js), com lógica robusta à prova de falhas."""
-    if df_unidade.empty: return {}
+    """
+    Prepara os dados para o gráfico de orçamento não utilizado, com cálculo corrigido.
+    """
+    if df_unidade.empty:
+        return {}
 
-    df_unidade['saldo_nao_executado'] = df_unidade['Valor_Planejado'].fillna(0) - df_unidade['Valor_Executado'].fillna(0)
+    # 1. Agrega o total planejado e executado por projeto e tipo.
+    df_agg = df_unidade.groupby(['PROJETO', 'tipo_projeto']).agg(
+        total_planejado=('Valor_Planejado', 'sum'),
+        total_executado=('Valor_Executado', 'sum')
+    ).reset_index()
 
-    saldo_total_por_projeto = df_unidade.groupby('PROJETO')['saldo_nao_executado'].sum()
-    top_7_projetos_com_saldo_positivo = saldo_total_por_projeto[saldo_total_por_projeto > 0].nlargest(7)
+    # 2. Calcula o saldo não utilizado APÓS a agregação total.
+    df_agg['saldo_nao_utilizado'] = df_agg['total_planejado'] - df_agg['total_executado']
 
-    if top_7_projetos_com_saldo_positivo.empty: return {}
+    # 3. Filtra apenas os projetos com saldo positivo e pega os 7 maiores.
+    df_top_7 = df_agg[df_agg['saldo_nao_utilizado'] > 0].nlargest(7, 'saldo_nao_utilizado')
 
-    top_7_nomes_projetos = top_7_projetos_com_saldo_positivo.index
-    df_filtrado = df_unidade[df_unidade['PROJETO'].isin(top_7_nomes_projetos)].copy()
-    
-    df_pivot = df_filtrado.pivot_table(index='PROJETO', columns='tipo_projeto', values='saldo_nao_executado', aggfunc='sum', fill_value=0)
-    df_pivot = df_pivot.reindex(top_7_nomes_projetos).fillna(0)
+    if df_top_7.empty:
+        return {}
 
-    # --- CORREÇÃO DEFINITIVA ---
-    # Verifica a existência da coluna ANTES de tentar acessá-la.
-    values_exclusivo = df_pivot['Exclusivo'].tolist() if 'Exclusivo' in df_pivot.columns else [0] * len(df_pivot)
-    values_compartilhado = df_pivot['Compartilhado'].tolist() if 'Compartilhado' in df_pivot.columns else [0] * len(df_pivot)
+    # 4. Prepara os dados para o gráfico (pivot)
+    top_7_nomes_projetos = df_top_7['PROJETO'].tolist()
+    df_pivot = df_top_7.pivot_table(
+        index='PROJETO',
+        columns='tipo_projeto',
+        values='saldo_nao_utilizado',
+        fill_value=0
+    ).reindex(top_7_nomes_projetos) # Reindexar para manter a ordem do nlargest
+
+    # 5. Prepara os detalhes para os tooltips (principais ações contribuintes)
+    df_filtrado_para_tooltip = df_unidade[df_unidade['PROJETO'].isin(top_7_nomes_projetos)].copy()
+    df_acoes_agg = df_filtrado_para_tooltip.groupby(['PROJETO', 'ACAO']).agg(
+        planejado_acao=('Valor_Planejado', 'sum'),
+        executado_acao=('Valor_Executado', 'sum')
+    ).reset_index()
+    df_acoes_agg['saldo_acao'] = df_acoes_agg['planejado_acao'] - df_acoes_agg['executado_acao']
 
     def formatar_acoes(group):
-        top_acoes = group[group['saldo_nao_executado'] > 0].groupby('ACAO')['saldo_nao_executado'].sum().nlargest(3)
-        return [f"- {acao}: {formatar_brl(saldo)}" for acao, saldo in top_acoes.items()]
+        top_acoes = group[group['saldo_acao'] > 0].nlargest(3, 'saldo_acao')
+        return [f"- {acao}: {formatar_brl(saldo)}" for _, (acao, saldo) in top_acoes[['ACAO', 'saldo_acao']].iterrows()]
 
-    detalhes_por_projeto = df_filtrado.groupby('PROJETO').apply(formatar_acoes, include_groups=False).reindex(df_pivot.index, fill_value=[])
-    tipos_projeto = df_filtrado.drop_duplicates(subset=['PROJETO']).set_index('PROJETO')['tipo_projeto']
-    
+    detalhes_por_projeto = df_acoes_agg.groupby('PROJETO').apply(formatar_acoes, include_groups=False).reindex(df_pivot.index, fill_value=[])
+
+    # Monta o dicionário final para o Chart.js
+    tipos_projeto = df_top_7.set_index('PROJETO')['tipo_projeto']
     detalhes_exclusivo = [detalhes_por_projeto.get(proj, []) if tipos_projeto.get(proj) == 'Exclusivo' else [] for proj in df_pivot.index]
     detalhes_compartilhado = [detalhes_por_projeto.get(proj, []) if tipos_projeto.get(proj) == 'Compartilhado' else [] for proj in df_pivot.index]
     
     return {
         "labels": df_pivot.index.tolist(),
-        "values_exclusivo": values_exclusivo,
-        "values_compartilhado": values_compartilhado,
+        "values_exclusivo": df_pivot['Exclusivo'].tolist() if 'Exclusivo' in df_pivot.columns else [0] * len(df_pivot),
+        "values_compartilhado": df_pivot['Compartilhado'].tolist() if 'Compartilhado' in df_pivot.columns else [0] * len(df_pivot),
         "detalhes_exclusivo": detalhes_exclusivo,
         "detalhes_compartilhado": detalhes_compartilhado
     }
