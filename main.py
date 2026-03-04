@@ -18,25 +18,50 @@ from comunicacao.carregamento import carregar_dataframe_para_sql_com_merge
 from processamento.extracao import obter_dados_brutos, obter_dados_comprometidos_brutos
 from processamento.correcao_chaves import iniciar_correcao_interativa_chaves
 from processamento.validacao import aplicar_mapa_correcoes, carregar_mapa_correcoes, preparar_dados_para_validacao
+from processamento.enriquecimento import enriquecer_orcado_com_cc
+
 
 logger = logging.getLogger(__name__)
 
-def executar_fluxo_de_enriquecimento(df_raw: pd.DataFrame, df_cc_referencia: pd.DataFrame, mapa_correcoes: dict, nome_fluxo: str, args: argparse.Namespace) -> pd.DataFrame:
+
+def executar_fluxo_de_enriquecimento(
+    df_raw: pd.DataFrame, 
+    df_cc_referencia: pd.DataFrame, 
+    mapa_correcoes: dict, 
+    nome_fluxo: str, 
+    args: argparse.Namespace
+) -> pd.DataFrame:
+    
     logger.info(f"--- Iniciando fluxo de enriquecimento para: {nome_fluxo} ---")
     if df_raw.empty:
         return pd.DataFrame()
 
-    df_para_validar = df_raw.copy()
+    chaves_base = ['PROJETO', 'ACAO', 'UNIDADE']
+    df_processado = pd.DataFrame() # DataFrame final a ser retornado
 
-    if nome_fluxo == "Comprometido Nacional":
-        logger.info("Fluxo 'Comprometido' detectado. Enriquecendo com dados de CC ANTES da validação de chaves.")
-        df_cc_ref_comprometido = df_cc_referencia.copy()
+    if nome_fluxo == "Orçado Nacional":
+        # FLUXO PADRÃO: 1. Valida/Corrige chaves -> 2. Enriquece com CC
+        df_preparado = preparar_dados_para_validacao(df_raw, chaves_base, incluir_ano_na_chave=True)
+        df_corrigido = aplicar_mapa_correcoes(df_preparado, mapa_correcoes)
         
+        # Agora, com as chaves corrigidas, faz a junção para adicionar o CODCCUSTO
+        logger.info("Enriquecendo dados do Orçado com a estrutura de CC...")
+        df_processado = enriquecer_orcado_com_cc(
+            df_orcado_pronto=df_corrigido, 
+            df_cc_pronto=df_cc_referencia, 
+            args=args
+        )
+
+    elif nome_fluxo == "Comprometido Nacional":
+        # FLUXO ESPECIAL: 1. Enriquece com CC (via chave truncada) -> 2. Valida/Corrige chaves
+        logger.info("Fluxo 'Comprometido' detectado. Enriquecendo com dados de CC ANTES da validação de chaves.")
+        df_para_validar = df_raw.copy()
+        
+        df_cc_ref_comprometido = df_cc_referencia.copy()
         logger.info("Aplicando truncagem de chave na referência de CC para correspondência.")
         df_cc_ref_comprometido['CODCCUSTO_TRUNCADO'] = df_cc_ref_comprometido['CODCCUSTO'].astype(str).str.rsplit('.', n=1).str[0]
         df_para_validar['CODCCUSTO'] = df_para_validar['CODCCUSTO'].astype(str).str.strip()
         
-        # Faz a junção para trazer as colunas PROJETO, ACAO, UNIDADE e o CODCCUSTO completo
         df_enriquecido_inicial = pd.merge(
             df_para_validar,
             df_cc_ref_comprometido[['CODCCUSTO_TRUNCADO', 'PROJETO', 'ACAO', 'UNIDADE', 'CODCCUSTO']].rename(columns={'CODCCUSTO': 'CODCCUSTO_COMPLETO'}),
@@ -44,8 +69,7 @@ def executar_fluxo_de_enriquecimento(df_raw: pd.DataFrame, df_cc_referencia: pd.
             right_on='CODCCUSTO_TRUNCADO',
             how='left'
         )
-        # O DataFrame agora tem 'CODCCUSTO' (o antigo, truncado) e 'CODCCUSTO_COMPLETO'
-        # Remove o antigo e renomeia o completo para ser a chave principal
+        
         df_enriquecido_inicial.drop(columns=['CODCCUSTO', 'CODCCUSTO_TRUNCADO'], inplace=True)
         df_enriquecido_inicial.rename(columns={'CODCCUSTO_COMPLETO': 'CODCCUSTO'}, inplace=True)
         
@@ -53,22 +77,23 @@ def executar_fluxo_de_enriquecimento(df_raw: pd.DataFrame, df_cc_referencia: pd.
         if linhas_sem_match > 0:
             logger.warning(f"{linhas_sem_match} linhas do Comprometido não encontraram correspondência e serão descartadas.")
             df_enriquecido_inicial.dropna(subset=['PROJETO'], inplace=True)
-        if df_enriquecido_inicial.empty:
-            logger.error("Nenhum dado do Comprometido restou após a junção. Verifique o formato dos 'CODCCUSTO'."); return pd.DataFrame()
         
-        # O DataFrame agora está pronto para validação, já com as colunas corretas.
-        df_para_validar = df_enriquecido_inicial
-
-    chaves_base = ['PROJETO', 'ACAO', 'UNIDADE']
-    df_preparado = preparar_dados_para_validacao(df_para_validar, chaves_base, incluir_ano_na_chave=True)
-    df_corrigido = aplicar_mapa_correcoes(df_preparado, mapa_correcoes)
+        if df_enriquecido_inicial.empty:
+            logger.error("Nenhum dado do Comprometido restou após a junção. Verifique o formato dos 'CODCCUSTO'.")
+            return pd.DataFrame()
+            
+        # Agora o DataFrame do Comprometido está pronto para a validação padrão
+        df_preparado = preparar_dados_para_validacao(df_enriquecido_inicial, chaves_base, incluir_ano_na_chave=True)
+        df_processado = aplicar_mapa_correcoes(df_preparado, mapa_correcoes)
     
-    # Validação final para garantir que CODCCUSTO ainda existe antes de salvar
-    if 'CODCCUSTO' not in df_corrigido.columns:
-        logger.error("Coluna 'CODCCUSTO' foi perdida durante o processo de validação/correção.")
+    # Verificação final unificada
+    if df_processado.empty or 'CODCCUSTO' not in df_processado.columns or df_processado['CODCCUSTO'].isnull().all():
+        logger.error(f"Coluna 'CODCCUSTO' foi perdida ou está vazia para o fluxo '{nome_fluxo}'.")
         return pd.DataFrame()
 
-    return df_corrigido
+    return df_processado
+
+
 
 
 # O restante do arquivo permanece o mesmo
