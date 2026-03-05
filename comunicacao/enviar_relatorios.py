@@ -157,7 +157,7 @@ def preparar_e_enviar_email_por_unidade(unidade_antiga_nome: str, gerentes_info:
             <a href="{dashboard_url}" target="_blank" style="text-decoration: none;"><img src="cid:screenshot_placeholder" alt="Prévia do Dashboard" style="width:100%; max-width:800px; border: 1px solid #e2e8f0; border-radius: 8px;"></a>
         </div>''' if screenshot_path else ""
 
-    assunto = f"💵 [pulso] - [fechamento 2025]: relatório despesas - {unidade_nova_nome} "
+    assunto = f"📊 [pulso] - [fechamento 2025]: relatório despesas - {unidade_nova_nome} "
     tratamento = info_gerente.get('tratamento', 'Prezado(a)')
     nome_gerente = info_gerente.get('gerente', 'Gestor(a)')
 
